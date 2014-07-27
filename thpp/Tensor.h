@@ -417,6 +417,9 @@ class Tensor {
   THType* t_;
 };
 
+template <class T>
+constexpr const char* Tensor<T>::kLuaTypeName;
+
 // Unary -
 template <class T>
 Tensor<T> operator-(const Tensor<T>& a);

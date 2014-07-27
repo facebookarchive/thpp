@@ -41,7 +41,9 @@ INCLUDE_DIRECTORIES(
 SET(src
   Storage.cpp
   StorageSerialization.cpp
+  detail/StorageDefs.cpp
   TensorSerialization.cpp
+  detail/TensorDefs.cpp
 )
 
 SET(h

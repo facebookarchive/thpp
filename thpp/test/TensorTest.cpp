@@ -161,4 +161,10 @@ TEST_F(TensorTest, EqualMismatch) {
   EXPECT_THROW(z.isExactlyEqual(w), std::invalid_argument);
 }
 
+TEST_F(TensorTest, Str) {
+  auto x = Tensor<float>{{2,3,4}};
+
+  EXPECT_EQ("torch.FloatTensor(2x3x4)", x.str());
+}
+
 }}  // namespaces

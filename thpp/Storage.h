@@ -142,6 +142,9 @@ class Storage {
   THType* t_;
 };
 
+template <class T>
+constexpr const char* Storage<T>::kLuaTypeName;
+
 /**
  * Wrap a THAllocator-like object with a C++ interface into THAllocator.
  */
