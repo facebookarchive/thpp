@@ -100,6 +100,9 @@ template <> struct TensorOps<real> {
     return THTensor_(copy)(self, src);
   }
 
+  template <class T>
+  static void _copyT(THTensor* self, T* src);
+
   // THTensorMath.h
   static void _fill(THTensor* r, real value) {
     THTensor_(fill)(r, value);
@@ -220,6 +223,23 @@ template <> struct TensorOps<real> {
 #undef S
 #undef S1
 };
+
+#define S(TYPE) \
+  template <> inline void TensorOps<real>::_copyT<TH##TYPE##Tensor>( \
+      THTensor* self, TH##TYPE##Tensor* src) { \
+    return THTensor_(copy##TYPE)(self, src); \
+  }
+
+S(Byte)
+S(Char)
+S(Short)
+S(Int)
+S(Long)
+S(Float)
+S(Double)
+
+#undef S
+
 }  // namespace detail
 
 #endif

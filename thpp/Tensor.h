@@ -61,6 +61,7 @@ struct TensorMustAlias {};
 template <class T>
 class Tensor {
  private:
+  template <class U> friend class Tensor;
   typedef detail::TensorOps<T> Ops;
  public:
   typedef typename Ops::type THType;
@@ -247,6 +248,10 @@ class Tensor {
   // Fill with zeros.
   void zero();
 
+  // Copy from another tensor
+  template <class U>
+  void copy(const Tensor<U>& src);
+
   // Given a ByteTensor of the exact same dimensionality as *this, whose
   // values are 0 or 1, set elements of *this to value iff the corresponding
   // elements in mask are 1.
@@ -260,12 +265,12 @@ class Tensor {
   // are 1. Returns a 1d tensor with one entry for each selected element.
   Tensor maskedSelect(const ByteTensor& mask) const;
 
-  // Select along dimension dim, copying only indexes from index.
+  // Select along dimension dim, copying only indices from index.
   // Returns a tensor with matching dimensionality, but only index.size()
   // elements along dimension dim.
   Tensor indexSelect(int dim, const LongTensor& index) const;
 
-  // Fill along dimension dim, setting entries corresponding to indexes
+  // Fill along dimension dim, setting entries corresponding to indices
   // from index to val.
   void indexFill(int dim, const LongTensor& index, T val);
 
@@ -390,17 +395,17 @@ class Tensor {
   // Index along the first dimension
   Tensor operator[](long index) const;
 
-  // Index along dimensions 0, 1, ..., indexes.size() - 1.
+  // Index along dimensions 0, 1, ..., indices.size() - 1.
   // Pass -1 as an index to keep that dimension unchanged.
   //
   // Example: given a 5-dimensional tensor foo,
   // foo[-1,2,-1,2,1] returns a 2-dimensional tensor corresponding
   // to the hyperplane that has d1=2, d3=2, d4=1 in foo.
-  Tensor operator[](std::initializer_list<long> indexes) const;
+  Tensor operator[](std::initializer_list<long> indices) const;
 
   // Operator to return the first element at the given index
-  T& at(std::initializer_list<long> indexes);
-  const T& at(std::initializer_list<long> indexes) const;
+  T& at(std::initializer_list<long> indices);
+  const T& at(std::initializer_list<long> indices) const;
 
   // Clear the tensor.
   void clear();

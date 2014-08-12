@@ -451,6 +451,12 @@ void Tensor<T>::zero() {
 }
 
 template <class T>
+template <class U>
+void Tensor<T>::copy(const Tensor<U>& src) {
+  Ops::_copyT(t_, src.mut());
+}
+
+template <class T>
 void Tensor<T>::maskedFill(const ByteTensor& mask, T value) {
   Ops::_maskedFill(t_, mask.mut(), value);
 }
