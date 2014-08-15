@@ -58,14 +58,13 @@ Tensor<T>::Tensor(std::initializer_list<long> sizes,
 template <class T>
 Tensor<T>::Tensor(ThriftTensor& thriftTensor, bool mayShare) : t_(nullptr) {
   auto buf = detail::deserialize(thriftTensor, detail::dataType<T>());
-  size_t len = buf.length();
   Storage<T> data(std::move(buf), mayShare);
 
   LongStorage s(LongStorage::wrap(makeMutable(LongRange(
       thriftTensor.sizes.data(), thriftTensor.sizes.size()))));
 
   t_ = Ops::_newWithStorage(data.th(), 0, s.th(), nullptr);
-  DCHECK_EQ(len, size() * sizeof(T));
+  DCHECK_EQ(data.size(), size());
 }
 
 template <class T>
