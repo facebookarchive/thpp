@@ -57,8 +57,14 @@ class Storage {
   explicit Storage(THType* t);
 
   // Create a Storage object containing the data from an IOBuf.
-  // If mayShare is true, the memory will be shared (not copied).
-  explicit Storage(folly::IOBuf&& iob, bool mayShare = true);
+  // If mayShare is true, the memory may be shared (not copied) if possible.
+  // Note that, if mayShare is true, we'll share memory with iob *even if iob
+  // is itself shared with other users using the IOBuf sharing mechanism*.
+  explicit Storage(folly::IOBuf& iob, bool mayShare = true);
+  explicit Storage(folly::IOBuf&& iob, bool mayShare = true)
+    : Storage(iob, mayShare) {
+    iob = folly::IOBuf();
+  }
 
   // Deserialize from Thrift. Throws if wrong type.
   explicit Storage(ThriftStorage& thriftStorage, bool mayShare = true);
@@ -129,7 +135,11 @@ class Storage {
  private:
   template <class U> friend class Tensor;
 
-  void setFromIOBuf(folly::IOBuf&& iob, bool mayShare);
+  void setFromIOBuf(folly::IOBuf& iob, bool mayShare);
+  void setFromIOBuf(folly::IOBuf&& iob, bool mayShare) {
+    setFromIOBuf(iob, mayShare);
+    iob = folly::IOBuf();
+  }
   void up();
   void down();
   void check(size_t index) const;

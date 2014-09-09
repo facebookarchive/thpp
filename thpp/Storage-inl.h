@@ -307,9 +307,9 @@ folly::IOBuf Storage<T>::getIOBuf() {
 }
 
 template <class T>
-Storage<T>::Storage(folly::IOBuf&& iob, bool mayShare)
+Storage<T>::Storage(folly::IOBuf& iob, bool mayShare)
   : t_(nullptr) {
-  setFromIOBuf(std::move(iob), mayShare);
+  setFromIOBuf(iob, mayShare);
 }
 
 template <class T>
@@ -319,14 +319,13 @@ Storage<T>::Storage(ThriftStorage& in, bool mayShare)
 }
 
 template <class T>
-void Storage<T>::setFromIOBuf(folly::IOBuf&& iob, bool mayShare) {
+void Storage<T>::setFromIOBuf(folly::IOBuf& iob, bool mayShare) {
   size_t len = iob.computeChainDataLength();
   if (len % sizeof(T) != 0) {
     throw std::invalid_argument("IOBuf size must be multiple of data size");
   }
   len /= sizeof(T);
-  // TODO(#4146201): Read-only version that allows a shared IOBuf
-  if (mayShare && !iob.isChained() && !iob.isSharedOne()) {
+  if (mayShare && !iob.isChained()) {
     // extract in variables, as we're about to use std::move(iob)
     T* p = reinterpret_cast<T*>(iob.writableData());
     t_ = Ops::_newWithDataAndAllocator(

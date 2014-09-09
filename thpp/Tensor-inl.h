@@ -163,7 +163,7 @@ void Tensor<T>::serialize(ThriftTensor& out,
                           ThriftTensorEndianness endianness,
                           bool mayShare) {
   auto buf = Storage<T>(Ops::_storage(t_)).getIOBuf();
-  buf.trimStart(Ops::_storageOffset(t_));
+  buf.trimStart(Ops::_storageOffset(t_) * sizeof(T));
   detail::serialize(
       out,
       sizes(),

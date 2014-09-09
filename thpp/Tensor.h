@@ -92,7 +92,9 @@ class Tensor {
   // thriftTensor.
   explicit Tensor(ThriftTensor& thriftTensor, bool mayShare=true);
   explicit Tensor(ThriftTensor&& thriftTensor, bool mayShare=true)
-    : Tensor(thriftTensor, mayShare) { }
+    : Tensor(thriftTensor, mayShare) {
+    thriftTensor.data = folly::IOBuf();
+  }
 
   // Destructor
   ~Tensor();
@@ -404,6 +406,9 @@ class Tensor {
   Tensor operator[](std::initializer_list<long> indices) const;
 
   // Operator to return the first element at the given index
+  T& at(long idx) { return at({idx}); }
+  const T& at(long idx) const { return at({idx}); }
+
   T& at(std::initializer_list<long> indices);
   const T& at(std::initializer_list<long> indices) const;
 

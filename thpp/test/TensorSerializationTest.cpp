@@ -84,6 +84,47 @@ TEST(SerializationTest, Simple) {
   runTest({20, 30}, {8192 * 30, 8192});
 }
 
+TEST(SerializationTest, SmallerThanStorage) {
+  Tensor<long> t({10L});
+  for (long i = 0; i < 10L; ++i) {
+    t.at(i) = i;
+  }
+  t.resize(LongStorage{5L});
+
+  ThriftTensor out;
+  t.serialize(out);
+
+  Tensor<long> t1(out);
+  EXPECT_EQ(1, t1.ndims());
+  EXPECT_EQ(5, t1.size());
+  for (long i = 0; i < t1.size(); ++i) {
+    EXPECT_EQ(i, t1.at(i));
+  }
+}
+
+TEST(SerializationTest, StorageOffset) {
+  Tensor<long> t({10L});
+  for (long i = 0; i < 10L; ++i) {
+    t.at(i) = i;
+  }
+
+  t.narrow(0, 1, 5);
+  EXPECT_EQ(5, t.size());
+  for (long i = 0; i < t.size(); ++i) {
+    EXPECT_EQ(i + 1, t.at(i));
+  }
+
+  ThriftTensor out;
+  t.serialize(out);
+
+  Tensor<long> t1(out);
+  EXPECT_EQ(1, t1.ndims());
+  EXPECT_EQ(5, t1.size());
+  for (long i = 0; i < t1.size(); ++i) {
+    EXPECT_EQ(i + 1, t1.at(i));
+  }
+}
+
 constexpr ThriftTensorEndianness nativeEndianness =
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
     ThriftTensorEndianness::LITTLE;

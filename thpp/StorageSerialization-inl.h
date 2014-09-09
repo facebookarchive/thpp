@@ -69,7 +69,9 @@ folly::IOBuf deserialize(ThriftObj& in,
         int(in.endianness), int(gMachineEndianness)));
   }
 
-  return std::move(in.data);
+  folly::IOBuf out;
+  in.data.cloneInto(out);
+  return out;
 }
 
 }}  // namespaces

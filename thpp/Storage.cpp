@@ -71,7 +71,6 @@ StorageHolderBase::StorageHolderBase(
 IOBufAllocator::IOBufAllocator(folly::IOBuf&& iob)
   : iob_(std::move(iob)) {
   DCHECK(!iob_.isChained());
-  DCHECK(!iob_.isShared());
 }
 
 void* IOBufAllocator::malloc(long size) {
@@ -81,6 +80,7 @@ void* IOBufAllocator::malloc(long size) {
 void* IOBufAllocator::realloc(void* ptr, long size) {
   CHECK_EQ(ptr, iob_.writableData());
   if (size > iob_.length()) {
+    iob_.unshareOne();
     long extra = size - iob_.length();
     iob_.reserve(0, extra);
     iob_.append(extra);

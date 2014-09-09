@@ -89,7 +89,10 @@ void serialize(
 
   if (firstContiguousDim == 0 && mayShare) {
     // We're done.
-    out.data = std::move(data);
+    data.cloneInto(out.data);
+    DCHECK_GE(out.data.length(), dataSize);
+    out.data.trimEnd(out.data.length() - dataSize);
+    data = folly::IOBuf();  // clear
     return;
   }
 
