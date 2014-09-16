@@ -46,7 +46,6 @@ void serialize(
   }
 
   int ndims = sizes.size();
-
   uint64_t dataSize = 1;
   uint64_t contiguousSize = 1;
   int firstContiguousDim = ndims - 1;
@@ -87,12 +86,18 @@ void serialize(
   out.endianness = endianness;
   out.sizes.assign(sizes.begin(), sizes.end());
 
+  if (ndims == 0) {
+    // Empty tensor, nothing to do.
+    out.data = folly::IOBuf();
+    data = folly::IOBuf();
+    return;
+  }
+
   if (firstContiguousDim == 0 && mayShare) {
     // We're done.
-    data.cloneInto(out.data);
+    out.data = std::move(data);
     DCHECK_GE(out.data.length(), dataSize);
     out.data.trimEnd(out.data.length() - dataSize);
-    data = folly::IOBuf();  // clear
     return;
   }
 

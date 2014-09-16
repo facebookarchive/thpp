@@ -56,9 +56,10 @@ Tensor<T>::Tensor(std::initializer_list<long> sizes,
            LongStorage(strides.begin(), strides.end())) { }
 
 template <class T>
-Tensor<T>::Tensor(ThriftTensor& thriftTensor, bool mayShare) : t_(nullptr) {
-  auto buf = detail::deserialize(thriftTensor, detail::dataType<T>());
-  Storage<T> data(std::move(buf), mayShare);
+Tensor<T>::Tensor(ThriftTensor&& thriftTensor) : t_(nullptr) {
+  auto buf = detail::deserialize(std::move(thriftTensor),
+                                 detail::dataType<T>());
+  Storage<T> data(std::move(buf));
 
   LongStorage s(LongStorage::wrap(makeMutable(LongRange(
       thriftTensor.sizes.data(), thriftTensor.sizes.size()))));

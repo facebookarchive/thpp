@@ -15,6 +15,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <folly/io/IOBuf.h>
 #include <folly/io/TypedIOBuf.h>
 
 namespace thpp {
@@ -58,7 +59,7 @@ void runTest(std::vector<long> sizes,
   src.serialize(serialized);
 
   src.force(Tensor<float>::CONTIGUOUS);
-  Tensor<float> deserialized(serialized);
+  Tensor<float> deserialized(std::move(serialized));
   EXPECT_TRUE(src.sizes() == deserialized.sizes());
   EXPECT_TRUE(src.strides() == deserialized.strides());
   EXPECT_EQ(0, memcmp(src.data(), deserialized.data(),
@@ -94,7 +95,7 @@ TEST(SerializationTest, SmallerThanStorage) {
   ThriftTensor out;
   t.serialize(out);
 
-  Tensor<long> t1(out);
+  Tensor<long> t1(std::move(out));
   EXPECT_EQ(1, t1.ndims());
   EXPECT_EQ(5, t1.size());
   for (long i = 0; i < t1.size(); ++i) {
@@ -117,12 +118,25 @@ TEST(SerializationTest, StorageOffset) {
   ThriftTensor out;
   t.serialize(out);
 
-  Tensor<long> t1(out);
+  Tensor<long> t1(std::move(out));
   EXPECT_EQ(1, t1.ndims());
   EXPECT_EQ(5, t1.size());
   for (long i = 0; i < t1.size(); ++i) {
     EXPECT_EQ(i + 1, t1.at(i));
   }
+}
+
+TEST(SerializatioNTest, Empty0d) {
+  Tensor<long> t;
+  EXPECT_EQ(0, t.ndims());
+  EXPECT_EQ(0, t.size());
+
+  ThriftTensor out;
+  t.serialize(out);
+
+  Tensor<long> t1(std::move(out));
+  EXPECT_EQ(0, t1.ndims());
+  EXPECT_EQ(0, t1.size());
 }
 
 constexpr ThriftTensorEndianness nativeEndianness =
@@ -148,7 +162,7 @@ TEST(SerializationTest, IOBufStorage) {
   }
   const void* ptr = serialized.data.data();
 
-  Tensor<float> deserialized(serialized);
+  Tensor<float> deserialized(std::move(serialized));
   EXPECT_TRUE(deserialized.data() == ptr);  // actually sharing memory
   EXPECT_EQ(1, deserialized.sizes().size());
   EXPECT_EQ(n, deserialized.sizes()[0]);
@@ -170,26 +184,33 @@ TEST(SerializationTest, ThriftStorageShare) {
   Storage<long> storage(size_t(1000), long(42));
   ThriftStorage serialized;
   storage.serialize(serialized);
-  EXPECT_TRUE(static_cast<const void*>(serialized.data.data()) ==
-              static_cast<const void*>(storage.data()));  // shares memory
+  auto ptr = storage.data();
+  auto size = storage.size();
+  EXPECT_TRUE(static_cast<const void*>(serialized.data.data()) == ptr);
+  storage = Storage<long>();  // lose the reference from storage
 
-  Storage<long> deserialized(serialized);
-  EXPECT_EQ(storage.size(), deserialized.size());
-  EXPECT_TRUE(deserialized.data() == storage.data());  // shares memory
+  Storage<long> deserialized(std::move(serialized));
+  EXPECT_EQ(size, deserialized.size());
+  EXPECT_TRUE(deserialized.data() == ptr);  // shares memory
 }
 
 TEST(SerializationTest, ThriftStorageNoShare) {
   Storage<long> storage(size_t(1000), long(42));
   ThriftStorage serialized;
   storage.serialize(serialized);
-  EXPECT_TRUE(static_cast<const void*>(serialized.data.data()) ==
-              static_cast<const void*>(storage.data()));  // shares memory
+  auto ptr = storage.data();
+  EXPECT_TRUE(static_cast<const void*>(serialized.data.data()) == ptr);
 
-  Storage<long> deserialized(serialized, false);  // don't share
+  Storage<long> deserialized(std::move(serialized));
   EXPECT_EQ(storage.size(), deserialized.size());
   EXPECT_FALSE(deserialized.data() == storage.data());  // doesn't share
-  EXPECT_EQ(0, memcmp(storage.data(), deserialized.data(),
-                      storage.size() * sizeof(long)));
+}
+
+TEST(SerializationTest, ThriftStorageRefs) {
+  folly::IOBuf buf2;
+  Storage<long> s1({1000L});
+  folly::IOBuf buf1 = s1.getIOBuf();
+  buf2 = s1.getIOBuf();
 }
 
 }}  // namespaces

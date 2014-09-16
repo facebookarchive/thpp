@@ -56,7 +56,7 @@ void serialize(ThriftStorage& out,
                bool mayShare=true);
 
 template <class ThriftObj>
-folly::IOBuf deserialize(ThriftObj& in,
+folly::IOBuf deserialize(ThriftObj&& in,
                          ThriftTensorDataType dtype) {
   if (dtype != in.dataType) {
     throw std::invalid_argument(folly::sformat(
@@ -69,9 +69,7 @@ folly::IOBuf deserialize(ThriftObj& in,
         int(in.endianness), int(gMachineEndianness)));
   }
 
-  folly::IOBuf out;
-  in.data.cloneInto(out);
-  return out;
+  return std::move(in.data);
 }
 
 }}  // namespaces

@@ -191,90 +191,15 @@ namespace detail {
  * What follows is some ugly acrobatics to allow IOBuf and THStorage to
  * share memory.
  *
- * If we want to create a IOBuf that wraps a THStorage, we need to ensure
- * that the memory doesn't get freed until the last reference to the IOBuf
- * is gone. This is easy; IOBuf allows setting a "free" callback, so we
- * keep a reference to the THStorage object for as long as references to
- * IOBuf exist.
- *
- * However, THStorage allows resizing, which calls realloc(), so we need to
- * ensure that the *original* chunk of memory stays allocated. We do this
- * by interposing a custom THStorage allocator (PreserveAllocator) that defers
- * reallocation / free of a given pointer until its destruction.
- *
- * Conversely, if we want to create a THStorage object that wraps an IOBuf,
+ * If we want to create a THStorage object that wraps an IOBuf,
  * we'll use a custom allocator that keeps a reference to the IOBuf and
  * calls appropriate methods on the IOBuf. We're relying on the slightly
  * unsafe (and undocumented) behavior that THStorage will only call the
  * "free" method of the allocator once at the end of its lifetime.
+ *
+ * If we want to create an IOBuf that wraps a THStorage, we reduce it to
+ * the case above by converting its memory to an IOBuf.
  */
-
-/**
- * THAllocator-like object that preserves the chunk of memory
- * from preservePtr to preserveSize, preventing it from being freed until
- * its destruction. It forwards all allocation / reallocation / deallocation
- * requests to another THAllocator otherwise.
- */
-class PreserveAllocator {
- public:
-  PreserveAllocator(void* preservePtr,
-                    long preserveSize,
-                    THAllocator* prevAllocator,
-                    void* prevAllocatorContext);
-  ~PreserveAllocator();
-
-  void* malloc(long size);
-  void* realloc(void* ptr, long size);
-  void free(void* ptr);
-
-  THAllocator* prevAllocator() const { return prevAllocator_; }
-  void* prevAllocatorContext() const { return prevAllocatorContext_; }
-
- private:
-  void* preservePtr_;
-  long preserveSize_;
-  bool preserved_;
-  THAllocator* prevAllocator_;
-  void* prevAllocatorContext_;
-};
-
-/**
- * Base class for StorageHolder, below.
- */
-class StorageHolderBase {
- public:
-  virtual ~StorageHolderBase() { }
-
- protected:
-  explicit StorageHolderBase(void* preservePtr, long preserveSize,
-                             THAllocator* prevAllocator,
-                             void* prevAllocatorContext);
-  PreserveAllocator allocator_;
-};
-
-/**
- * Holder class that keeps a reference to a THStorage.
- */
-template <class T>
-class StorageHolder : public StorageHolderBase {
- public:
-  explicit StorageHolder(Storage<T> s)
-    : StorageHolderBase(s.data(), s.size() * sizeof(T),
-                        s.t_->allocator, s.t_->allocatorContext),
-      storage_(std::move(s)) {
-    storage_.t_->allocator =
-      &THAllocatorWrapper<PreserveAllocator>::thAllocator;
-    storage_.t_->allocatorContext = &allocator_;
-  }
-
-  ~StorageHolder() {
-    storage_.t_->allocator = allocator_.prevAllocator();
-    storage_.t_->allocatorContext = allocator_.prevAllocatorContext();
-  }
-
- private:
-  Storage<T> storage_;
-};
 
 class IOBufAllocator {
  public:
@@ -284,14 +209,15 @@ class IOBufAllocator {
   void* realloc(void* ptr, long size);
   void free(void* ptr);
 
+  folly::IOBuf clone() {
+    folly::IOBuf buf;
+    iob_.cloneInto(buf);
+    return buf;
+  }
+
  private:
   folly::IOBuf iob_;
 };
-
-/**
- * Free function (IOBuf callback) that releases the StorageHolder's reference.
- */
-void storageUnrefFreeFunction(void* buf, void* userData);
 
 }  // namespace detail
 
@@ -299,56 +225,72 @@ template <class T>
 folly::IOBuf Storage<T>::getIOBuf() {
   if (!t_) return folly::IOBuf();
 
-  return folly::IOBuf(
-      folly::IOBuf::TakeOwnershipOp(),
-      data(), size() * sizeof(T), size() * sizeof(T),
-      detail::storageUnrefFreeFunction,
-      static_cast<void*>(new detail::StorageHolder<T>(*this)));
+  auto iobTHAllocator =
+    &THAllocatorWrapper<detail::IOBufAllocator>::thAllocator;
+
+  if (t_->allocator == &THDefaultAllocator) {
+    // Switch to using IOBuf allocator.
+    // We know that memory from the default allocator was allocated with
+    // malloc, just like IOBuf, so we know how to free it.
+    t_->allocator = iobTHAllocator;
+    t_->allocatorContext = new detail::IOBufAllocator(folly::IOBuf(
+            folly::IOBuf::TAKE_OWNERSHIP,
+            data(), size() * sizeof(T), size() * sizeof(T)));
+  } else {
+    // There are three obvious solutions here, all wrong.
+    //
+    // 1. We could memcpy() into our own IOBuf and proceed as above. This
+    //    doesn't work because the memory might be allocated in an unusual
+    //    way (different address space (CUDA), mlock()ed, unusual alignment
+    //    requirements) and we don't know how to replicate that with IOBuf.
+    //
+    // 2. We could remember the previous allocator and allocator context and
+    //    call that allocator's free method when necessary. This doesn't work
+    //    because TH doesn't manage lifetimes of allocators and allocator
+    //    contexts, so we can't know when a previous allocator and context
+    //    are still valid (not deleted).
+    //
+    // 3. Just as in 2 above, we could remember the previous allocator and
+    //    allocator context, but we'll also keep a reference to the Storage
+    //    object, to prevent the allocator from being deleted. This means that
+    //    the IOBuf has a reference to the Storage (via the free function
+    //    that would ensure that the previous allocator's free method gets
+    //    called) and the Storage has a reference to the IOBuf's memory
+    //    (via IOBufAllocator), so the reference count for either never drops
+    //    to 0, so we have a memory leak.
+    CHECK(t_->allocator == iobTHAllocator)
+      << "Can not convert to IOBuf, Storage was allocated with unknown "
+         "allocator";
+  }
+
+  auto allocator = static_cast<detail::IOBufAllocator*>(t_->allocatorContext);
+  return allocator->clone();
 }
 
 template <class T>
-Storage<T>::Storage(folly::IOBuf& iob, bool mayShare)
-  : t_(nullptr) {
-  setFromIOBuf(iob, mayShare);
+Storage<T>::Storage(folly::IOBuf&& iob) : t_(nullptr) {
+  setFromIOBuf(std::move(iob));
 }
 
 template <class T>
-Storage<T>::Storage(ThriftStorage& in, bool mayShare)
-  : t_(nullptr) {
-  setFromIOBuf(detail::deserialize(in, detail::dataType<T>()), mayShare);
+Storage<T>::Storage(ThriftStorage&& in) : t_(nullptr) {
+  setFromIOBuf(detail::deserialize(std::move(in), detail::dataType<T>()));
 }
 
 template <class T>
-void Storage<T>::setFromIOBuf(folly::IOBuf& iob, bool mayShare) {
+void Storage<T>::setFromIOBuf(folly::IOBuf&& iob) {
   size_t len = iob.computeChainDataLength();
   if (len % sizeof(T) != 0) {
     throw std::invalid_argument("IOBuf size must be multiple of data size");
   }
   len /= sizeof(T);
-  if (mayShare && !iob.isChained()) {
-    // extract in variables, as we're about to use std::move(iob)
-    T* p = reinterpret_cast<T*>(iob.writableData());
-    t_ = Ops::_newWithDataAndAllocator(
-        p, len,
-        &THAllocatorWrapper<detail::IOBufAllocator>::thAllocator,
-        new detail::IOBufAllocator(std::move(iob)));
-  } else {
-    t_ = Ops::_newWithSize(len);
-
-    uint8_t* dst = reinterpret_cast<uint8_t*>(data());
-
-    if (!iob.empty()) {
-      memcpy(dst, iob.data(), iob.length());
-      dst += iob.length();
-    }
-
-    auto iptr = iob.pop();
-    while (iptr) {
-      memcpy(dst, iptr->data(), iptr->length());
-      dst += iptr->length();
-      iptr = iptr->pop();
-    }
-  }
+  iob.coalesce();
+  iob.unshareOne();
+  T* p = reinterpret_cast<T*>(iob.writableData());
+  t_ = Ops::_newWithDataAndAllocator(
+      p, len,
+      &THAllocatorWrapper<detail::IOBufAllocator>::thAllocator,
+      new detail::IOBufAllocator(std::move(iob)));
 }
 
 template <class T>

@@ -87,14 +87,7 @@ class Tensor {
       std::initializer_list<long> strides = std::initializer_list<long>());
 
   // Deserialize from Thrift. Throws if wrong type.
-  // thriftTensor is a non-const reference because *this may share memory
-  // with it (if allowed), so any modifications in *this would reflect in
-  // thriftTensor.
-  explicit Tensor(ThriftTensor& thriftTensor, bool mayShare=true);
-  explicit Tensor(ThriftTensor&& thriftTensor, bool mayShare=true)
-    : Tensor(thriftTensor, mayShare) {
-    thriftTensor.data = folly::IOBuf();
-  }
+  explicit Tensor(ThriftTensor&& thriftTensor);
 
   // Destructor
   ~Tensor();

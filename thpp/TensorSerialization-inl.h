@@ -26,7 +26,7 @@ void serialize(
     bool mayShare = true);
 
 template <class ThriftObj>
-folly::IOBuf deserialize(ThriftObj& in,
+folly::IOBuf deserialize(ThriftObj&& in,
                          ThriftTensorDataType dtype);
 
 }}  // namespaces
