@@ -410,7 +410,7 @@ T& Tensor<T>::at(std::initializer_list<long> indexes) {
   auto dim = 0;
   for (auto it = indexes.begin(); it != indexes.end(); ++it) {
     const auto offset = *it;
-    if (offset > size(dim)) {
+    if (offset >= size(dim)) {
       throw std::invalid_argument("index out of range");
     }
 
@@ -430,7 +430,7 @@ const T& Tensor<T>::at(std::initializer_list<long> indexes) const {
   auto dim = 0;
   for (auto it = indexes.begin(); it != indexes.end(); ++it) {
     const auto offset = *it;
-    if (offset > size(dim)) {
+    if (offset >= size(dim)) {
       throw std::invalid_argument("index out of range");
     }
 
