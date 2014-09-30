@@ -54,6 +54,9 @@ class Storage {
   template <class It> Storage(It begin, It end);
   Storage(size_t n, T value);
 
+  explicit Storage(Range<const T*> range)
+    : Storage(range.begin(), range.end()) { }
+
   explicit Storage(THType* t);
 
   // Create a Storage object containing the data from an IOBuf.
