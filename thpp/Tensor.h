@@ -13,6 +13,7 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include <thpp/Storage.h>
 #include <thpp/detail/Tensor.h>
@@ -82,6 +83,8 @@ class Tensor {
   // list of sizes.
   explicit Tensor(LongStorage sizes, LongStorage strides = LongStorage());
   explicit Tensor(LongRange sizes, LongRange strides = LongRange());
+  explicit Tensor(const std::vector<long>& sizes,
+                  const std::vector<long>& strides = std::vector<long>());
   explicit Tensor(
       std::initializer_list<long> sizes,
       std::initializer_list<long> strides = std::initializer_list<long>());

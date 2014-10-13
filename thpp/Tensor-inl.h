@@ -56,6 +56,12 @@ Tensor<T>::Tensor(std::initializer_list<long> sizes,
            LongStorage(strides.begin(), strides.end())) { }
 
 template <class T>
+Tensor<T>::Tensor(const std::vector<long>& sizes,
+                  const std::vector<long>& strides)
+    : Tensor(LongStorage(sizes.begin(), sizes.end()),
+             LongStorage(strides.begin(), strides.end())) { }
+
+template <class T>
 Tensor<T>::Tensor(ThriftTensor&& thriftTensor) : t_(nullptr) {
   auto buf = detail::deserialize(std::move(thriftTensor),
                                  detail::dataType<T>());
