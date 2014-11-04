@@ -345,6 +345,13 @@ void Tensor<T>::squeeze(const Tensor& src, int dim) {
 }
 
 template <class T>
+void Tensor<T>::resize(std::initializer_list<long> sizes,
+                       std::initializer_list<long> strides) {
+  resize(LongStorage(sizes.begin(), sizes.end()),
+         LongStorage(strides.begin(), strides.end()));
+}
+
+template <class T>
 void Tensor<T>::resize(LongStorage sizes, LongStorage strides) {
   Ops::_resize(t_, sizes.th(), strides.th());
 }
