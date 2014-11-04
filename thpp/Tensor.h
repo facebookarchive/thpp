@@ -234,8 +234,8 @@ class Tensor {
   void squeeze(int dim) { squeeze(*this, dim); }
 
   void resize(
-      std::initializer_list<long> sizes,
-      std::initializer_list<long> strides = std::initializer_list<long>());
+      std::initializer_list<long> newSizes,
+      std::initializer_list<long> newStrides = std::initializer_list<long>());
   void resize(LongStorage newSizes, LongStorage newStrides = LongStorage());
   void resize(LongRange newSizes, LongRange newStrides = LongRange());
   void resizeAs(const Tensor& src);
