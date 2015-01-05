@@ -69,15 +69,13 @@ class Tensor {
   typedef Storage<T> StorageType;
   typedef T value_type;
   typedef typename Ops::accurate_type accurate_type;
-  typedef long size_type;
-  typedef long offset_type;
 
   // Default constructor; construct an empty, zero-dimensional Tensor.
   Tensor();
 
   explicit Tensor(TensorInvalid);
 
-  Tensor(StorageType storage, offset_type storageOffset,
+  Tensor(StorageType storage, long storageOffset,
          LongStorage sizes, LongStorage strides = LongStorage());
 
   // Constructors from a list of sizes and a list of strides.
@@ -85,11 +83,11 @@ class Tensor {
   // list of sizes.
   explicit Tensor(LongStorage sizes, LongStorage strides = LongStorage());
   explicit Tensor(LongRange sizes, LongRange strides = LongRange());
-  explicit Tensor(const std::vector<size_type>& sizes,
-                  const std::vector<size_type>& strides = std::vector<size_type>());
+  explicit Tensor(const std::vector<long>& sizes,
+                  const std::vector<long>& strides = std::vector<long>());
   explicit Tensor(
-      std::initializer_list<size_type> sizes,
-      std::initializer_list<size_type> strides = std::initializer_list<size_type>());
+      std::initializer_list<long> sizes,
+      std::initializer_list<long> strides = std::initializer_list<long>());
 
   // Deserialize from Thrift. Throws if wrong type.
   explicit Tensor(ThriftTensor&& thriftTensor);
@@ -183,7 +181,7 @@ class Tensor {
                             float relativeError = 0.0001f) const;
 
   // Return number of elements.
-  size_type size() const;
+  long size() const;
 
   // Return list of sizes.
   LongRange sizes() const;
@@ -195,23 +193,22 @@ class Tensor {
   int ndims() const { return t_->nDimension; }
 
   // Return size along dimension dim.
-  size_type size(int dim) const { return sizes().at(dim); }
+  long size(int dim) const { return sizes().at(dim); }
 
   // Return stride along dimension dim.
-  size_type stride(int dim) const { return strides().at(dim); }
+  long stride(int dim) const { return strides().at(dim); }
 
   // Narrow the tensor along a given dimension; the dimension dim is narrowed
   // to [firstIndex, firstIndex + size)
-  void narrow(const Tensor& src, int dim, offset_type firstIndex,
-              size_type size);
-  void narrow(int dim, offset_type firstIndex, size_type size) {
+  void narrow(const Tensor& src, int dim, long firstIndex, long size);
+  void narrow(int dim, long firstIndex, long size) {
     narrow(*this, dim, firstIndex, size);
   }
 
   // Select one slice of the tensor along a given dimension. The tensor's
   // dimensionality is reduced by 1.
-  void select(const Tensor& src, int dim, offset_type index);
-  void select(int dim, offset_type index) { select(*this, dim, index); }
+  void select(const Tensor& src, int dim, long index);
+  void select(int dim, long index) { select(*this, dim, index); }
 
   // Transpose two dimensions.
   void transpose(const Tensor& src, int dim1, int dim2);
@@ -225,8 +222,8 @@ class Tensor {
   // given step between slices) are unfolded among a new dimension that is
   // added.
   // See http://torch5.sourceforge.net/manual/torch/index-6-8-3.html
-  void unfold(const Tensor& src, int dim, size_type size, size_type step);
-  void unfold(int dim, size_type size, size_type step) { unfold(*this, dim, size, step); }
+  void unfold(const Tensor& src, int dim, long size, long step);
+  void unfold(int dim, long size, long step) { unfold(*this, dim, size, step); }
 
   // Squeeze: remove all 1-sized dimensions.
   void squeeze(const Tensor& src);
@@ -237,15 +234,14 @@ class Tensor {
   void squeeze(int dim) { squeeze(*this, dim); }
 
   void resize(
-      std::initializer_list<size_type> newSizes,
-      std::initializer_list<size_type> newStrides =
-        std::initializer_list<size_type>());
+      std::initializer_list<long> newSizes,
+      std::initializer_list<long> newStrides = std::initializer_list<long>());
   void resize(LongStorage newSizes, LongStorage newStrides = LongStorage());
   void resize(LongRange newSizes, LongRange newStrides = LongRange());
   void resizeAs(const Tensor& src);
 
   StorageType storage();
-  offset_type storageOffset() const;
+  long storageOffset() const;
 
   // Fill with one value.
   void fill(T value);
@@ -350,7 +346,7 @@ class Tensor {
   }
 
   // number of elements, same as size()
-  size_type numel() const { return size(); }
+  long numel() const { return size(); }
 
   // The following functions perform operations along one dimension.
   // The returned tensors will have the same shape as *this except that they
@@ -398,7 +394,7 @@ class Tensor {
   T& front() { return *data(); }
 
   // Index along the first dimension
-  Tensor operator[](offset_type index) const;
+  Tensor operator[](long index) const;
 
   // Index along dimensions 0, 1, ..., indices.size() - 1.
   // Pass -1 as an index to keep that dimension unchanged.
@@ -406,14 +402,14 @@ class Tensor {
   // Example: given a 5-dimensional tensor foo,
   // foo[-1,2,-1,2,1] returns a 2-dimensional tensor corresponding
   // to the hyperplane that has d1=2, d3=2, d4=1 in foo.
-  Tensor operator[](std::initializer_list<offset_type> indices) const;
+  Tensor operator[](std::initializer_list<long> indices) const;
 
   // Operator to return the first element at the given index
-  T& at(offset_type idx) { return at({idx}); }
-  const T& at(offset_type idx) const { return at({idx}); }
+  T& at(long idx) { return at({idx}); }
+  const T& at(long idx) const { return at({idx}); }
 
-  T& at(std::initializer_list<offset_type> indices);
-  const T& at(std::initializer_list<offset_type> indices) const;
+  T& at(std::initializer_list<long> indices);
+  const T& at(std::initializer_list<long> indices) const;
 
   // Clear the tensor.
   void clear();
