@@ -66,17 +66,12 @@ ADD_THRIFT2(src "if/Tensor.thrift")
 
 ADD_LIBRARY(thpp SHARED ${src})
 
-FIND_LIBRARY(lib_TH TH)
-IF(NOT lib_TH)
-  MESSAGE(FATAL_ERROR "libTH not found")
-ENDIF()
-
 # This is a template library, so some dependent libraries are only used from
 # header files, so we'd like to force them to be linked.
 SET(CMAKE_SHARED_LINKER_FLAGS "-Wl,--no-as-needed")
 
 TARGET_LINK_LIBRARIES(thpp
-  ${lib_TH} ${FOLLY_LIBRARIES} ${GLOG_LIBRARIES} ${THRIFT_LIBRARIES})
+  TH ${FOLLY_LIBRARIES} ${GLOG_LIBRARIES} ${THRIFT_LIBRARIES})
 
 ADD_SUBDIRECTORY("test")
 
