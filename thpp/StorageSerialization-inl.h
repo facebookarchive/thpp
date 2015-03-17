@@ -12,6 +12,8 @@
 #error This file may only be included from thpp/Storage.h
 #endif
 
+#include <folly/Format.h>
+
 namespace thpp {
 namespace detail {
 
