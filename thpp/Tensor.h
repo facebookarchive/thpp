@@ -77,7 +77,7 @@ class Tensor {
 
   explicit Tensor(TensorInvalid);
 
-  Tensor(StorageType storage, long storageOffset,
+  Tensor(StorageType storage, offset_type storageOffset,
          LongStorage sizes, LongStorage strides = LongStorage());
 
   // Constructors from a list of sizes and a list of strides.
@@ -227,7 +227,7 @@ class Tensor {
   // given step between slices) are unfolded among a new dimension that is
   // added.
   // See http://torch5.sourceforge.net/manual/torch/index-6-8-3.html
-  void unfold(const Tensor& src, int dim, offset_type size, size_type step);
+  void unfold(const Tensor& src, int dim, size_type size, size_type step);
   void unfold(int dim, size_type size, size_type step) {
     unfold(*this, dim, size, step);
   }
