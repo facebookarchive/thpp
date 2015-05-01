@@ -24,14 +24,15 @@ void* IOBufAllocator::malloc(long size) {
 
 void* IOBufAllocator::realloc(void* ptr, long size) {
   CHECK_EQ(ptr, iob_.writableData());
-  if (size > iob_.capacity()) {
-    iob_.unshareOne();
-    iob_.reserve(0, size - iob_.capacity());
-  }
-  if (size < iob_.length()) {
+  if (size <= iob_.length()) {
     iob_.trimEnd(iob_.length() - size);
   } else {
-    iob_.append(size - iob_.length());
+    auto extra = size - iob_.length();
+    if (extra > iob_.tailroom()) {
+      iob_.unshareOne();
+      iob_.reserve(0, extra);
+    }
+    iob_.append(extra);
   }
   return iob_.writableData();
 }
