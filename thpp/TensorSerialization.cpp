@@ -120,7 +120,7 @@ void serialize(
   const uint8_t* src = data.data();
   while (idx >= 0) {
     if (idx == firstContiguousDim) {
-      if (contiguousSize >= kMinCloneSize) {
+      if (mayShare && contiguousSize >= kMinCloneSize) {
         appender.insert(partialCloneOne(data, src - data.data(),
                                         contiguousSize));
       } else {
@@ -141,6 +141,7 @@ void serialize(
 
   outQueue.move()->cloneInto(out.data);
 }
+
 
 template folly::IOBuf deserialize(ThriftTensor& in,
                                   ThriftTensorDataType dtype);

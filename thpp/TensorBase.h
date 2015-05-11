@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <folly/Range.h>
+#include <thpp/Storage.h>
 
 namespace thpp {
 
@@ -186,6 +187,9 @@ class TensorBase {
   // Sum of all elements
   accurate_type sumall() const;
 
+  // Product of all elements
+  accurate_type prodall() const;
+
   // Add a value to each element in the tensor
   void add(const TensorBase& src, T value);
   void add(T value) { add(*this, value); }
@@ -253,12 +257,6 @@ class TensorBase {
   // The returned tensors will have the same shape as *this except that they
   // have a size of 1 along dimension dim. (That is, they're not squeezed)
 
-  // <max, argmax>
-  std::pair<Derived, Tensor<long>> max(int dim) const;
-
-  // <min, argmin>
-  std::pair<Derived, Tensor<long>> min(int dim) const;
-
   // sum
   Derived sum(int dim) const;
 
@@ -273,14 +271,6 @@ class TensorBase {
 
   // Element-wise sign
   Derived sign() const;
-
-  // Trace (must be matrix)
-  accurate_type trace() const;
-
-  // Cross product along dim (if >= 0) or along the first dimension with size
-  // 3. (Yeah, it's weird like that):
-  // https://github.com/torch/torch7/blob/master/doc/maths.md
-  Derived cross(const TensorBase& b, int dim = -1) const;
 
   // TODO(tudorb): TH doesn't distinguish between a 1-element 1-dimensional
   // array (aka 1-element vector) and a scalar.
@@ -305,19 +295,21 @@ class TensorBase {
   // to the hyperplane that has d1=2, d3=2, d4=1 in foo.
   Derived operator[](std::initializer_list<offset_type> indices) const;
 
-  // Operator to return the first element at the given index
-  T& at(offset_type idx) { return at({idx}); }
-  const T& at(offset_type idx) const { return at({idx}); }
-
-  T& at(std::initializer_list<offset_type> indices);
-  const T& at(std::initializer_list<offset_type> indices) const;
-
   // Clear the tensor.
   void clear();
 
   std::string str() const;
 
+  // const version of serialize() that won't share, but will always copy
+  void serializeUnshared(ThriftTensor& out,
+                         ThriftTensorEndianness endianness =
+                            ThriftTensorEndianness::NATIVE) const {
+    const_cast<TensorBase*>(this)->D()->serialize(out, endianness, false);
+  }
+
  protected:
+  T* addressOf(std::initializer_list<offset_type> indices);
+
   TensorBase() { }  // leaves t_ uninitialized
   explicit TensorBase(THType* t) : t_(t) { }
   void destroy();

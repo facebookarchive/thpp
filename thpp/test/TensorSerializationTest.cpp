@@ -126,7 +126,7 @@ TEST(SerializationTest, StorageOffset) {
   }
 }
 
-TEST(SerializatioNTest, Empty0d) {
+TEST(SerializationTest, Empty0d) {
   Tensor<long> t;
   EXPECT_EQ(0, t.ndims());
   EXPECT_EQ(0, t.size());

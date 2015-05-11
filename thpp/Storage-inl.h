@@ -62,7 +62,7 @@ void serialize(ThriftStorage& out,
                folly::IOBuf&& data,
                ThriftTensorDataType dtype,
                ThriftTensorEndianness endianness,
-               bool mayShare=true);
+               bool mayShare);
 
 template <class ThriftObj>
 folly::IOBuf deserialize(ThriftObj&& in,

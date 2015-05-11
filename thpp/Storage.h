@@ -27,6 +27,7 @@ using folly::Range;
  * reference-counted, heap-allocated array.
  */
 template <class T> class Tensor;
+template <class T> class CudaTensor;
 
 template <class T>
 class Storage : public StorageBase<T, Storage<T>> {
@@ -95,6 +96,7 @@ class Storage : public StorageBase<T, Storage<T>> {
 
  private:
   template <class U> friend class Tensor;
+  template <class U> friend class CudaTensor;
 
   void setFromIOBuf(folly::IOBuf&& iob);
 };

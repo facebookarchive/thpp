@@ -7,6 +7,11 @@
 #error This file may only be included from thpp/TensorBase.h
 #endif
 
+#include <cmath>
+#include <type_traits>
+#include <folly/Conv.h>
+#include <folly/Likely.h>
+
 namespace thpp {
 
 namespace detail {
@@ -66,7 +71,7 @@ bool TensorBase<T, StorageT, Derived>::isExactlyEqual(
 
   if (ndims() == 1) {
     for (int i = 0; i < size(0); ++i) {
-      if (at({i}) != other.at({i})) {
+      if (D()->at({i}) != other.D()->at({i})) {
         return false;
       }
     }
@@ -90,12 +95,12 @@ bool TensorBase<T, StorageT, Derived>::isApproximatelyEqual(
   }
 
   if (ndims() != other.ndims()) {
-    throw std::invalid_argument("isExactlyEqual: dimension mismatch");
+    throw std::invalid_argument("isApproximatelyEqual: dimension mismatch");
   }
 
   for (int i = 0; i < ndims(); ++i) {
     if (size(i) != other.size(i)) {
-      throw std::invalid_argument("isExactlyEqual: size mismatch");
+      throw std::invalid_argument("isApproximatelyEqual: size mismatch");
     }
   }
 
@@ -103,8 +108,8 @@ bool TensorBase<T, StorageT, Derived>::isApproximatelyEqual(
     const auto adjRelativeError = 0.5f * relativeError;
 
     for (int i = 0; i < size(0); ++i) {
-      const auto a = at({i});
-      const auto b = other.at({i});
+      const auto a = D()->at({i});
+      const auto b = other.D()->at({i});
 
       // Handle special cases
       if (a == b || (std::isnan(a) && std::isnan(b))) {
@@ -265,9 +270,10 @@ Derived TensorBase<T, StorageT, Derived>::operator[](
 }
 
 template <class T, class StorageT, class Derived>
-T& TensorBase<T, StorageT, Derived>::at(std::initializer_list<long> indexes) {
-  if (indexes.size() > ndims() || indexes.size() == 0) {
-    throw std::invalid_argument("must provide 1 to ndims() indices");
+T* TensorBase<T, StorageT, Derived>::addressOf(
+    std::initializer_list<long> indexes) {
+  if (indexes.size() != ndims()) {
+    throw std::invalid_argument("must provide ndims() indices");
   }
 
   auto ptr = data();
@@ -281,28 +287,7 @@ T& TensorBase<T, StorageT, Derived>::at(std::initializer_list<long> indexes) {
     ptr += offset * stride(dim++);
   }
 
-  return *ptr;
-}
-
-template <class T, class StorageT, class Derived>
-const T& TensorBase<T, StorageT, Derived>::at(
-    std::initializer_list<long> indexes) const {
-  if (indexes.size() > ndims() || indexes.size() == 0) {
-    throw std::invalid_argument("must provide 1 to ndims() indices");
-  }
-
-  auto ptr = data();
-  auto dim = 0;
-  for (auto it = indexes.begin(); it != indexes.end(); ++it) {
-    const auto offset = *it;
-    if (offset >= size(dim)) {
-      throw std::invalid_argument("index out of range");
-    }
-
-    ptr += offset * stride(dim++);
-  }
-
-  return *ptr;
+  return ptr;
 }
 
 template <class T, class StorageT, class Derived>
@@ -329,7 +314,6 @@ auto TensorBase<T, StorageT, Derived>::dot(
 TENSOR_REDUCE_OP(T, minall)
 TENSOR_REDUCE_OP(T, maxall)
 TENSOR_REDUCE_OP(accurate_type, sumall)
-TENSOR_REDUCE_OP(accurate_type, trace)
 #undef TENSOR_REDUCE_OP
 
 #define TENSOR_ST_OP(name) \
@@ -400,14 +384,6 @@ template <class T, class StorageT, class Derived>
 auto TensorBase<T, StorageT, Derived>::sign() const -> Derived {
   Derived dest;
   Ops::_sign(dest.t_, mut());
-  return dest;
-}
-
-template <class T, class StorageT, class Derived>
-auto TensorBase<T, StorageT, Derived>::cross(const TensorBase& b, int dim) const
--> Derived {
-  Derived dest;
-  Ops::_cross(dest.t_, mut(), b.mut(), dim);
   return dest;
 }
 

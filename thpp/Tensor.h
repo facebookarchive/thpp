@@ -55,12 +55,13 @@ struct TensorMustAlias {};
  * argument to the copy and move constructors). Note that this may break
  * the memory sharing (it will likely create a UNIQUE copy as well).
  */
+template <class T> class CudaTensor;
 template <class T>
 class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
   typedef TensorBase<T, Storage<T>, Tensor<T>> Base;
   typedef typename Base::Ops Ops;
- private:
   template <class U> friend class Tensor;
+  template <class U> friend class CudaTensor;
  public:
   typedef typename Base::StorageType StorageType;
   typedef typename Base::offset_type offset_type;
@@ -127,16 +128,27 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
                     ThriftTensorEndianness::NATIVE,
                  bool mayShare = true);
 
-  // const version that won't share, but will always copy
-  void serializeUnshared(ThriftTensor& out,
-                         ThriftTensorEndianness endianness =
-                            ThriftTensorEndianness::NATIVE) const {
-    const_cast<Tensor*>(this)->serialize(out, endianness, false);
-  }
-
   // Copy from another tensor
   template <class U>
   void copy(const Tensor<U>& src);
+
+  // Operator to return the first element at the given index
+  T& at(offset_type idx) { return at({idx}); }
+  const T& at(offset_type idx) const { return at({idx}); }
+
+  T& at(std::initializer_list<offset_type> indices) {
+    return *(this->addressOf(std::move(indices)));
+  }
+
+  const T& at(std::initializer_list<offset_type> indices) const {
+    return const_cast<Tensor*>(this)->at(std::move(indices));
+  }
+
+  // <max, argmax>
+  std::pair<Tensor, Tensor<long>> max(int dim) const;
+
+  // <min, argmin>
+  std::pair<Tensor, Tensor<long>> min(int dim) const;
 };
 
 }  // namespaces

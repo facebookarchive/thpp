@@ -12,15 +12,10 @@
 #error This file may only be included from thpp/Tensor.h
 #endif
 
-#include <cmath>
-#include <type_traits>
-#include <folly/Conv.h>
-#include <folly/Likely.h>
-#include <folly/ScopeGuard.h>
-
 namespace thpp {
 
 namespace detail {
+
 void serialize(
     ThriftTensor& out,
     LongRange sizes,
@@ -28,8 +23,8 @@ void serialize(
     folly::IOBuf&& data,
     ThriftTensorDataType dtype,
     size_t elementSize,
-    ThriftTensorEndianness endianness = ThriftTensorEndianness::NATIVE,
-    bool mayShare = true);
+    ThriftTensorEndianness endianness,
+    bool mayShare);
 
 template <class ThriftObj>
 folly::IOBuf deserialize(ThriftObj&& in,
@@ -227,11 +222,10 @@ void TensorBase<T, StorageT, Derived>::indexFill(
 }
 
 #define TENSOR_ARGM_OP(name) \
-  template <class T, class StorageT, class Derived> \
-  auto TensorBase<T, StorageT, Derived>::name(int dim) const \
-  -> std::pair<Derived, LongTensor> { \
-    std::pair<Derived, LongTensor> dest; \
-    Ops::_ ## name(dest.first.t_, dest.second.t_, mut(), dim); \
+  template <class T> \
+  auto Tensor<T>::name(int dim) const -> std::pair<Tensor, LongTensor> { \
+    std::pair<Tensor, LongTensor> dest; \
+    Ops::_ ## name(dest.first.t_, dest.second.t_, this->mut(), dim); \
     return dest; \
   }
 TENSOR_ARGM_OP(min)
