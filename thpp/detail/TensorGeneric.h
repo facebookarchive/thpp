@@ -15,7 +15,7 @@
 typedef Tensor<real> TH_CONCAT_2(Real, Tensor);
 
 namespace detail {
-template <> struct TensorOps<real> {
+template <> struct TensorOps<Tensor<real>> {
   typedef real value_type;
   typedef accreal accurate_type;
   typedef THTensor type;
@@ -225,7 +225,7 @@ template <> struct TensorOps<real> {
 };
 
 #define S(TYPE) \
-  template <> inline void TensorOps<real>::_copyT<TH##TYPE##Tensor>( \
+  template <> inline void TensorOps<Tensor<real>>::_copyT<TH##TYPE##Tensor>( \
       THTensor* self, TH##TYPE##Tensor* src) { \
     return THTensor_(copy##TYPE)(self, src); \
   }

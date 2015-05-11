@@ -18,10 +18,73 @@
 #error This file may only be included from thpp/Storage.h
 #endif
 
+#include <folly/Format.h>
+
 namespace thpp {
 
+namespace detail {
+
+// Endianness of current machine.
+constexpr ThriftTensorEndianness gMachineEndianness =
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+  ThriftTensorEndianness::LITTLE;
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+  ThriftTensorEndianness::BIG;
+#else
+# error Weird endianness!
+#endif
+
+template <class T> struct DataType;
+
+#define X(TYPE, DTYPE, SIZE) \
+  template <> struct DataType<TYPE> { \
+    static_assert(sizeof(TYPE) == SIZE, \
+                  "Invalid size for " #TYPE); \
+    static constexpr ThriftTensorDataType value = \
+      ThriftTensorDataType::DTYPE; \
+    static constexpr size_t size = SIZE; \
+  };
+
+X(unsigned char, BYTE, 1)
+X(int32_t, INT32, 4)
+X(int64_t, INT64, 8)
+X(float, FLOAT, 4)
+X(double, DOUBLE, 8)
+
+#undef X
+
 template <class T>
-Storage<T>::Storage() : t_(nullptr) { }
+constexpr ThriftTensorDataType dataType() {
+  return DataType<T>::value;
+}
+
+void serialize(ThriftStorage& out,
+               folly::IOBuf&& data,
+               ThriftTensorDataType dtype,
+               ThriftTensorEndianness endianness,
+               bool mayShare=true);
+
+template <class ThriftObj>
+folly::IOBuf deserialize(ThriftObj&& in,
+                         ThriftTensorDataType dtype) {
+  if (dtype != in.dataType) {
+    throw std::invalid_argument(folly::sformat(
+        "Invalid Thrift tensor data type {}, expected {}",
+        int(in.dataType), int(dtype)));
+  }
+  if (in.endianness != gMachineEndianness) {
+    throw std::invalid_argument(folly::sformat(
+        "Non-native endianness not yet implemented: {}, expected {}",
+        int(in.endianness), int(gMachineEndianness)));
+  }
+
+  return std::move(in.data);
+}
+
+}  // namespace detail
+
+template <class T>
+Storage<T>::Storage() : Base(nullptr) { }
 
 template <class T>
 Storage<T>::Storage(std::initializer_list<T> data)
@@ -33,30 +96,30 @@ Storage<T>::Storage(It begin, It end) {
   // Do not use newWithSize, as it leaks memory on exception.
   auto n = std::distance(begin, end);
   if (n == 0) {
-    t_ = nullptr;
+    this->t_ = nullptr;
     return;
   }
   T* data = static_cast<T*>(folly::checkedMalloc(n * sizeof(T)));
   SCOPE_FAIL { free(data); };
   std::copy(begin, end, data);
-  t_ = Ops::_newWithData(data, n);
+  this->t_ = Ops::_newWithData(data, n);
 }
 
 template <class T>
 Storage<T>::Storage(size_t n, T value) {
   if (n == 0) {
-    t_ = nullptr;
+    this->t_ = nullptr;
     return;
   }
   T* data = static_cast<T*>(folly::checkedMalloc(n * sizeof(T)));
   SCOPE_FAIL { free(data); };
   std::fill_n(data, n, value);
-  t_ = Ops::_newWithData(data, n);
+  this->t_ = Ops::_newWithData(data, n);
 }
 
 template <class T>
-Storage<T>::Storage(THType* t) : t_(t) {
-  up();
+Storage<T>::Storage(THType* t) : Base(t) {
+  this->up();
 }
 
 template <class T>
@@ -96,11 +159,11 @@ Storage<T> Storage<T>::wrapWithAllocator(Range<T*> data,
 
 template <class T>
 Storage<T>::~Storage() {
-  down();
+  this->down();
 }
 
 template <class T>
-Storage<T>::Storage(Storage&& other) noexcept : t_(other.t_) {
+Storage<T>::Storage(Storage&& other) noexcept : Base(other.t_) {
   other.t_ = nullptr;
 }
 
@@ -110,8 +173,8 @@ Storage<T>::Storage(const Storage& other) : Storage(other.t_) { }
 template <class T>
 Storage<T>& Storage<T>::operator=(Storage&& other) {
   if (&other != this) {
-    down();
-    t_ = other.t_;
+    this->down();
+    this->t_ = other.t_;
     other.t_ = nullptr;
   }
   return *this;
@@ -120,37 +183,20 @@ Storage<T>& Storage<T>::operator=(Storage&& other) {
 template <class T>
 Storage<T>& Storage<T>::operator=(const Storage& other) {
   if (&other != this) {
-    down();
-    t_ = other.t_;
-    up();
+    this->down();
+    this->t_ = other.t_;
+    this->up();
   }
   return *this;
 }
 
 template <class T>
-void Storage<T>::resizeUninitialized(size_t n) {
-  if (n == 0) {
-    down();
-    t_ = nullptr;
-    return;
-  }
-
-  if (t_) {
-    Ops::_resize(t_, n);
-  } else {
-    T* data = static_cast<T*>(folly::checkedMalloc(n * sizeof(T)));
-    SCOPE_FAIL { free(data); };
-    t_ = Ops::_newWithData(data, n);
-  }
-}
-
-template <class T>
 void Storage<T>::resize(size_t n, T value) {
-  size_t oldSize = size();
-  resizeUninitialized(n);
+  size_t oldSize = this->size();
+  this->resizeUninitialized(n);
 
   if (n > oldSize) {
-    std::fill(data() + oldSize, data() + n, value);
+    std::fill(this->data() + oldSize, this->data() + n, value);
   }
 }
 
@@ -158,31 +204,14 @@ template <class T>
 template <class It>
 void Storage<T>::assign(It begin, It end) {
   auto n = std::distance(begin, end);
-  resizeUninitialized(n);
-  std::copy(begin, end, data());
+  this->resizeUninitialized(n);
+  std::copy(begin, end, this->data());
 }
 
 template <class T>
 void Storage<T>::assign(size_t n, T value) {
-  resizeUninitialized(n);
-  std::fill_n(data(), n, value);
-}
-
-template <class T>
-void Storage<T>::up() {
-  if (t_) Ops::_retain(t_);
-}
-
-template <class T>
-void Storage<T>::down() {
-  if (t_) Ops::_free(t_);
-}
-
-template <class T>
-void Storage<T>::check(size_t index) const {
-  if (UNLIKELY(index >= size())) {
-    throw std::out_of_range("Storage index out of range");
-  }
+  this->resizeUninitialized(n);
+  std::fill_n(this->data(), n, value);
 }
 
 namespace detail {
@@ -223,19 +252,19 @@ class IOBufAllocator {
 
 template <class T>
 folly::IOBuf Storage<T>::getIOBuf() {
-  if (!t_) return folly::IOBuf();
+  if (!this->t_) return folly::IOBuf();
 
   auto iobTHAllocator =
     &THAllocatorWrapper<detail::IOBufAllocator>::thAllocator;
 
-  if (t_->allocator == &THDefaultAllocator) {
+  if (this->t_->allocator == &THDefaultAllocator) {
     // Switch to using IOBuf allocator.
     // We know that memory from the default allocator was allocated with
     // malloc, just like IOBuf, so we know how to free it.
-    t_->allocator = iobTHAllocator;
-    t_->allocatorContext = new detail::IOBufAllocator(folly::IOBuf(
+    this->t_->allocator = iobTHAllocator;
+    this->t_->allocatorContext = new detail::IOBufAllocator(folly::IOBuf(
             folly::IOBuf::TAKE_OWNERSHIP,
-            data(), size() * sizeof(T), size() * sizeof(T)));
+            this->data(), this->size() * sizeof(T), this->size() * sizeof(T)));
   } else {
     // There are three obvious solutions here, all wrong.
     //
@@ -258,22 +287,23 @@ folly::IOBuf Storage<T>::getIOBuf() {
     //    called) and the Storage has a reference to the IOBuf's memory
     //    (via IOBufAllocator), so the reference count for either never drops
     //    to 0, so we have a memory leak.
-    CHECK(t_->allocator == iobTHAllocator)
+    CHECK(this->t_->allocator == iobTHAllocator)
       << "Can not convert to IOBuf, Storage was allocated with unknown "
          "allocator";
   }
 
-  auto allocator = static_cast<detail::IOBufAllocator*>(t_->allocatorContext);
+  auto allocator = static_cast<detail::IOBufAllocator*>(
+      this->t_->allocatorContext);
   return allocator->clone();
 }
 
 template <class T>
-Storage<T>::Storage(folly::IOBuf&& iob) : t_(nullptr) {
+Storage<T>::Storage(folly::IOBuf&& iob) : Base(nullptr) {
   setFromIOBuf(std::move(iob));
 }
 
 template <class T>
-Storage<T>::Storage(ThriftStorage&& in) : t_(nullptr) {
+Storage<T>::Storage(ThriftStorage&& in) : Base(nullptr) {
   setFromIOBuf(detail::deserialize(std::move(in), detail::dataType<T>()));
 }
 
@@ -287,7 +317,7 @@ void Storage<T>::setFromIOBuf(folly::IOBuf&& iob) {
   iob.coalesce();
   iob.unshareOne();
   T* p = reinterpret_cast<T*>(iob.writableData());
-  t_ = Ops::_newWithDataAndAllocator(
+  this->t_ = Ops::_newWithDataAndAllocator(
       p, len,
       &THAllocatorWrapper<detail::IOBufAllocator>::thAllocator,
       new detail::IOBufAllocator(std::move(iob)));
@@ -299,14 +329,6 @@ void Storage<T>::serialize(ThriftStorage& out,
                            bool mayShare) const {
   detail::serialize(out, const_cast<Storage*>(this)->getIOBuf(),
                     detail::dataType<T>(), endianness, mayShare);
-}
-
-template <class T>
-auto Storage<T>::moveAsTH() -> THType* {
-  using std::swap;
-  THType* out = nullptr;
-  swap(out, t_);
-  return out;
 }
 
 template <class A>

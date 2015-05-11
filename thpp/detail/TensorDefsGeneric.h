@@ -8,6 +8,8 @@
  *
  */
 
+// override-include-guard
+
 #ifndef THPP_INCLUDE_TENSOR_DEFS
 #error This file may only be included from TensorDefs.cpp
 #endif
@@ -18,7 +20,7 @@
 
 namespace thpp { namespace detail {
 
-constexpr const char* TensorOps<real>::kLuaTypeName;
+constexpr const char* TensorOps<Tensor<real>>::kLuaTypeName;
 
 }}  // namespaces
 

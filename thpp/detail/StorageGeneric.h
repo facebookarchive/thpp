@@ -17,7 +17,7 @@ typedef Range<real*> TH_CONCAT_3(Mutable, Real, Range);
 typedef Storage<real> TH_CONCAT_2(Real, Storage);
 
 namespace detail {
-template <> struct StorageOps<real> {
+template <> struct StorageOps<Storage<real>> {
   typedef THStorage type;
 
   static THStorage* _newWithSize(long size) {
