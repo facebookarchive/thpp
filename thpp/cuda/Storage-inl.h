@@ -35,10 +35,34 @@ template <class T>
 CudaStorage<T>::CudaStorage(const Storage<T>& cpuStorage) : CudaStorage() {
   if (cpuStorage.data()) {
     resizeUninitialized(cpuStorage.size());
-    cuda::check(cudaMemcpy(this->data(), cpuStorage.data(),
-                           cpuStorage.size() * sizeof(T),
-                           cudaMemcpyHostToDevice));
+    this->read(0, cpuStorage.data(), cpuStorage.size());
   }
+}
+
+template <class T>
+void CudaStorage<T>::read(size_t offset, T* dest, size_t n) const {
+  DCHECK_LE(offset + n, this->size());
+  cuda::check(cudaMemcpy(dest, this->data() + offset, n * sizeof(T),
+                         cudaMemcpyDeviceToHost));
+}
+
+template <class T>
+T CudaStorage<T>::read(size_t offset) const {
+  T result;
+  this->read(offset, &result, 1);
+  return result;
+}
+
+template <class T>
+void CudaStorage<T>::write(size_t offset, const T* src, size_t n) {
+  DCHECK_LE(offset + n, this->size());
+  cuda::check(cudaMemcpy(this->data() + offset, src, n * sizeof(T),
+                         cudaMemcpyHostToDevice));
+}
+
+template <class T>
+void CudaStorage<T>::write(size_t offset, T value) {
+  this->write(offset, &value, 1);
 }
 
 template <class T>
@@ -85,9 +109,7 @@ Storage<T> CudaStorage<T>::toCPU() const {
   Storage<T> cpuStorage;
   if (this->data()) {
     cpuStorage.resizeUninitialized(this->size());
-    cuda::check(cudaMemcpy(cpuStorage.data(), this->data(),
-                           this->size() * sizeof(T),
-                           cudaMemcpyDeviceToHost));
+    this->write(0, cpuStorage.data(), this->size());
   }
   return cpuStorage;
 }

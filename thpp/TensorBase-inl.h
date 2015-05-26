@@ -243,6 +243,16 @@ auto TensorBase<T, StorageT, Derived>::storage() -> StorageType {
 }
 
 template <class T, class StorageT, class Derived>
+auto TensorBase<T, StorageT, Derived>::storageRef(StorageBuffer* buf)
+  -> StorageType& {
+  auto pbuf = reinterpret_cast<typename StorageT::THType**>(buf);
+  *pbuf = Ops::_storage(t_);
+  // This relies on the fact that StorageT doesn't contain any members
+  // other than the pointer to the appopriate THStorage
+  return *reinterpret_cast<StorageT*>(pbuf);
+}
+
+template <class T, class StorageT, class Derived>
 long TensorBase<T, StorageT, Derived>::storageOffset() const {
   return Ops::_storageOffset(t_);
 }
@@ -270,24 +280,24 @@ Derived TensorBase<T, StorageT, Derived>::operator[](
 }
 
 template <class T, class StorageT, class Derived>
-T* TensorBase<T, StorageT, Derived>::addressOf(
-    std::initializer_list<long> indexes) {
+size_t TensorBase<T, StorageT, Derived>::offsetOf(
+    std::initializer_list<long> indexes) const {
   if (indexes.size() != ndims()) {
     throw std::invalid_argument("must provide ndims() indices");
   }
 
-  auto ptr = data();
+  size_t offset = 0;
   auto dim = 0;
   for (auto it = indexes.begin(); it != indexes.end(); ++it) {
-    const auto offset = *it;
-    if (offset >= size(dim)) {
+    const auto idx = *it;
+    if (idx >= size(dim)) {
       throw std::invalid_argument("index out of range");
     }
 
-    ptr += offset * stride(dim++);
+    offset += idx * stride(dim++);
   }
 
-  return ptr;
+  return offset;
 }
 
 template <class T, class StorageT, class Derived>

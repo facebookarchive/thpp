@@ -46,6 +46,11 @@ class CudaStorage : public StorageBase<T, CudaStorage<T>> {
 
   Storage<T> toCPU() const;
 
+  T read(size_t offset) const;
+  void read(size_t offset, T* dest, size_t n) const;
+  void write(size_t offset, T value);
+  void write(size_t offset, const T* src, size_t n);
+
  private:
   template <class U> friend class CudaTensor;
 };

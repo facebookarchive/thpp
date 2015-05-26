@@ -145,6 +145,21 @@ class TensorBase {
   void resizeAs(const TensorBase& src);
 
   StorageType storage();
+  const StorageType storage() const {
+    return const_cast<TensorBase*>(this)->storage();
+  }
+
+  typedef typename std::aligned_storage<
+    sizeof(StorageT), alignof(StorageT)>::type StorageBuffer;
+  // Hack. You must provide an appropriately-sized buffer. Return a reference
+  // to a storage object *that does not increment the reference count*,
+  // so may point into nothingness if this tensor is resized or destroyed.
+  // You have been warned.
+  StorageType& storageRef(StorageBuffer* buf);
+  const StorageType& storageRef(StorageBuffer* buf) const {
+    return const_cast<TensorBase*>(this)->storageRef(buf);
+  }
+
   offset_type storageOffset() const;
 
   // Fill with one value.
@@ -308,7 +323,7 @@ class TensorBase {
   }
 
  protected:
-  T* addressOf(std::initializer_list<offset_type> indices);
+  size_t offsetOf(std::initializer_list<offset_type> indices) const;
 
   TensorBase() { }  // leaves t_ uninitialized
   explicit TensorBase(THType* t) : t_(t) { }

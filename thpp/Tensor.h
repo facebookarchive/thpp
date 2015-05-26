@@ -137,7 +137,7 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
   const T& at(offset_type idx) const { return at({idx}); }
 
   T& at(std::initializer_list<offset_type> indices) {
-    return *(this->addressOf(std::move(indices)));
+    return this->data()[this->offsetOf(std::move(indices))];
   }
 
   const T& at(std::initializer_list<offset_type> indices) const {

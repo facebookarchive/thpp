@@ -143,10 +143,9 @@ auto CudaTensor<T>::operator=(THType*&& other) -> CudaTensor& {
 
 template <class T>
 T CudaTensor<T>::at(std::initializer_list<offset_type> indices) const {
-  auto ptr = const_cast<CudaTensor*>(this)->addressOf(std::move(indices));
-  T result;
-  cuda::check(cudaMemcpy(&result, ptr, sizeof(result), cudaMemcpyDeviceToHost));
-  return result;
+  auto offset = this->storageOffset() + this->offsetOf(std::move(indices));
+  typename Base::StorageBuffer buf;
+  return this->storageRef(&buf).read(offset);
 }
 
 template <class T>

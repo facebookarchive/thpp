@@ -94,6 +94,27 @@ class Storage : public StorageBase<T, Storage<T>> {
                      ThriftTensorEndianness::NATIVE,
                  bool mayShare = true) const;
 
+  // This is obvious, except on Cuda, where it isn't.
+  T read(size_t offset) const {
+    DCHECK_LT(offset, this->size());
+    return this->data()[offset];
+  }
+
+  void read(size_t offset, T* dest, size_t n) const {
+    DCHECK_LE(offset + n, this->size());
+    memcpy(dest, this->data() + offset, n * sizeof(T));
+  }
+
+  void write(size_t offset, T value) {
+    DCHECK_LT(offset, this->size());
+    this->data()[offset] = value;
+  }
+
+  void write(size_t offset, const T* src, size_t n) {
+    DCHECK_LE(offset + n, this->size());
+    memcpy(this->data() + offset, src, n * sizeof(T));
+  }
+
  private:
   template <class U> friend class Tensor;
   template <class U> friend class CudaTensor;
