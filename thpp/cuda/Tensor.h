@@ -111,6 +111,21 @@ class CudaTensor : public TensorBase<T, CudaStorage<T>, CudaTensor<T>> {
   CudaTensor<T> toDevice(int device) const;
 };
 
+template <class D, class S>
+void copyTensor(Tensor<D>& dest, const CudaTensor<S>& src) {
+  src.copyTo(dest);
+}
+
+template <class D, class S>
+void copyTensor(CudaTensor<D>& dest, const Tensor<S>& src) {
+  dest.copy(src);
+}
+
+template <class D, class S>
+void copyTensor(CudaTensor<D>& dest, const CudaTensor<S>& src) {
+  dest.copy(src);
+}
+
 }  // namespaces
 
 #include <thpp/cuda/Tensor-inl.h>

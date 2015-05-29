@@ -151,6 +151,11 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
   std::pair<Tensor, Tensor<long>> min(int dim) const;
 };
 
+template <class D, class S>
+void copyTensor(Tensor<D>& dest, const Tensor<S>& src) {
+  dest.copy(src);
+}
+
 }  // namespaces
 
 #include <thpp/Tensor-inl.h>
