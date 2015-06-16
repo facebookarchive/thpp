@@ -68,7 +68,7 @@ ADD_LIBRARY(thpp SHARED ${src})
 
 # This is a template library, so some dependent libraries are only used from
 # header files, so we'd like to force them to be linked.
-SET(CMAKE_SHARED_LINKER_FLAGS "-Wl,--no-as-needed")
+SET(CMAKE_SHARED_LINKER_FLAGS "-Wl,--no-as-needed,-lboost_thread,-lboost_system")
 
 TARGET_LINK_LIBRARIES(thpp
   TH ${FOLLY_LIBRARIES} ${GLOG_LIBRARIES} ${THRIFT_LIBRARIES})
