@@ -29,7 +29,8 @@ class CudaStorage : public StorageBase<T, CudaStorage<T>> {
   explicit CudaStorage(const Storage<T>& cpuStorage);
 
   // Deserialize from Thrift. Throws if wrong type.
-  explicit CudaStorage(ThriftStorage&& thriftStorage);
+  explicit CudaStorage(const ThriftStorage& thriftStorage,
+                       bool mayShare = true);
 
   ~CudaStorage();
 
@@ -50,6 +51,12 @@ class CudaStorage : public StorageBase<T, CudaStorage<T>> {
   void read(size_t offset, T* dest, size_t n) const;
   void write(size_t offset, T value);
   void write(size_t offset, const T* src, size_t n);
+
+  bool isUnique() const { return isUnique(this->t_); }
+  // No CUDA support for custom allocators.
+  static bool isUnique(const THType* th) {
+    return !th || th->refcount == 1;
+  }
 
  private:
   template <class U> friend class CudaTensor;

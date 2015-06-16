@@ -76,6 +76,14 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
   Tensor(StorageType storage, offset_type storageOffset,
          LongStorage sizes, LongStorage strides = LongStorage());
 
+  Tensor(StorageType storage, offset_type storageOffset,
+         LongRange sizes, LongRange strides = LongRange());
+
+  Tensor(StorageType storage, offset_type storageOffset,
+         std::initializer_list<size_type> sizes,
+         std::initializer_list<size_type> strides =
+           std::initializer_list<size_type>());
+
   // Constructors from a list of sizes and a list of strides.
   // If specified, the list of strides must have the same size as the
   // list of sizes.
@@ -90,7 +98,7 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
         std::initializer_list<size_type>());
 
   // Deserialize from Thrift. Throws if wrong type.
-  explicit Tensor(ThriftTensor&& thriftTensor);
+  explicit Tensor(const ThriftTensor& thriftTensor, bool mayShare = true);
 
   // Destructor
   ~Tensor();
@@ -120,13 +128,13 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
   // operation of moveAsTH().
   Tensor& operator=(THType*&& other);
 
-  // Serialize to Thrift. Non-const because the resulting ThriftTensor
-  // may share memory with *this, and so changes in the ThriftTensor may
-  // affect changes in *this.
+  // Serialize to Thrift. Note that, if mayShare is true, the resulting
+  // ThriftTensor may share memory with *this, so changes in out.data
+  // may be reflected in *this.
   void serialize(ThriftTensor& out,
                  ThriftTensorEndianness endianness =
                     ThriftTensorEndianness::NATIVE,
-                 bool mayShare = true);
+                 bool mayShare = true) const;
 
   // Copy from another tensor
   template <class U>

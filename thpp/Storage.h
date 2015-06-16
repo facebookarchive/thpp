@@ -49,11 +49,14 @@ class Storage : public StorageBase<T, Storage<T>> {
   explicit Storage(THType* t);
 
   // Create a Storage object containing the data from an IOBuf.
-  explicit Storage(folly::IOBuf&& iob);
-  explicit Storage(folly::IOBuf& iob) : Storage(*iob.clone()) { }
+  // If mayShare is true, then the Storage object will share memory
+  // with the IOBuf, at least until either is resized.
+  explicit Storage(folly::IOBuf&& iob, bool mayShare = true);
+  explicit Storage(const folly::IOBuf& iob, bool mayShare = true)
+    : Storage(folly::IOBuf(iob), mayShare) { }
 
   // Deserialize from Thrift. Throws if wrong type.
-  explicit Storage(ThriftStorage&& thriftStorage);
+  explicit Storage(const ThriftStorage& thriftStorage, bool mayShare = true);
 
   // Takes ownership of a range allocated with malloc() (NOT new or new[]!)
   static Storage takeOwnership(Range<T*> data);
@@ -84,8 +87,11 @@ class Storage : public StorageBase<T, Storage<T>> {
   template <class It> void assign(It begin, It end);
   void assign(size_t n, T value);
 
-  // Create a IOBuf that wraps this storage object. The storage object
-  // won't get deleted until all references to the IOBuf are gone.
+  // Create a IOBuf that wraps the memory currently allocated to this
+  // storage offset. The memory won't be freed until all references to it
+  // are gone, either from IOBufs or from Storage objects. Note that
+  // if this Storage is resized, it might not share memory with the
+  // returned IOBuf any more.
   folly::IOBuf getIOBuf();
 
   // Serialize to Thrift.
@@ -115,11 +121,14 @@ class Storage : public StorageBase<T, Storage<T>> {
     memcpy(this->data() + offset, src, n * sizeof(T));
   }
 
+  bool isUnique() const { return isUnique(this->t_); }
+  static bool isUnique(const THType* th);
+
  private:
   template <class U> friend class Tensor;
   template <class U> friend class CudaTensor;
 
-  void setFromIOBuf(folly::IOBuf&& iob);
+  void setFromIOBuf(folly::IOBuf&& iob, bool mayShare);
 };
 
 /**

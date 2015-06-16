@@ -48,7 +48,7 @@ LongRange TensorBase<T, StorageT, Derived>::strides() const {
 
 template <class T, class StorageT, class Derived>
 bool TensorBase<T, StorageT, Derived>::isUnique(const THType* th) {
-  return !th->storage || th->storage->refcount == 1;
+  return StorageType::isUnique(th->storage);
 }
 
 template <class T, class StorageT, class Derived>

@@ -86,8 +86,9 @@ CudaStorage<T>& CudaStorage<T>::operator=(const CudaStorage& other) {
 }
 
 template <class T>
-CudaStorage<T>::CudaStorage(ThriftStorage&& thriftStorage)
-  : CudaStorage(Storage<T>(std::move(thriftStorage))) {
+CudaStorage<T>::CudaStorage(const ThriftStorage& thriftStorage,
+                            bool mayShare)
+  : CudaStorage(Storage<T>(thriftStorage, true)) {
 }
 
 namespace detail {

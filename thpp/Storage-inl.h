@@ -65,7 +65,7 @@ void serialize(ThriftStorage& out,
                bool mayShare);
 
 template <class ThriftObj>
-folly::IOBuf deserialize(ThriftObj&& in,
+folly::IOBuf deserialize(const ThriftObj& in,
                          ThriftTensorDataType dtype) {
   if (dtype != in.dataType) {
     throw std::invalid_argument(folly::sformat(
@@ -78,7 +78,7 @@ folly::IOBuf deserialize(ThriftObj&& in,
         int(in.endianness), int(gMachineEndianness)));
   }
 
-  return std::move(in.data);
+  return in.data;
 }
 
 }  // namespace detail
@@ -237,6 +237,7 @@ class IOBufAllocator {
   void* malloc(long size);
   void* realloc(void* ptr, long size);
   void free(void* ptr);
+  bool isUnique(const void* ptr) const;
 
   folly::IOBuf clone() {
     folly::IOBuf buf;
@@ -246,6 +247,7 @@ class IOBufAllocator {
 
  private:
   folly::IOBuf iob_;
+  uint64_t maxLength_;
 };
 
 }  // namespace detail
@@ -265,32 +267,34 @@ folly::IOBuf Storage<T>::getIOBuf() {
     this->t_->allocatorContext = new detail::IOBufAllocator(folly::IOBuf(
             folly::IOBuf::TAKE_OWNERSHIP,
             this->data(), this->size() * sizeof(T), this->size() * sizeof(T)));
-  } else {
-    // There are three obvious solutions here, all wrong.
-    //
-    // 1. We could memcpy() into our own IOBuf and proceed as above. This
-    //    doesn't work because the memory might be allocated in an unusual
-    //    way (different address space (CUDA), mlock()ed, unusual alignment
-    //    requirements) and we don't know how to replicate that with IOBuf.
-    //
-    // 2. We could remember the previous allocator and allocator context and
-    //    call that allocator's free method when necessary. This doesn't work
-    //    because TH doesn't manage lifetimes of allocators and allocator
-    //    contexts, so we can't know when a previous allocator and context
-    //    are still valid (not deleted).
-    //
-    // 3. Just as in 2 above, we could remember the previous allocator and
-    //    allocator context, but we'll also keep a reference to the Storage
-    //    object, to prevent the allocator from being deleted. This means that
-    //    the IOBuf has a reference to the Storage (via the free function
-    //    that would ensure that the previous allocator's free method gets
-    //    called) and the Storage has a reference to the IOBuf's memory
-    //    (via IOBufAllocator), so the reference count for either never drops
-    //    to 0, so we have a memory leak.
-    CHECK(this->t_->allocator == iobTHAllocator)
-      << "Can not convert to IOBuf, Storage was allocated with unknown "
-         "allocator";
+  } else if (this->t_->allocator != iobTHAllocator) {
+    throw std::invalid_argument(
+        "Cannot convert to IOBuf, Storage was allocated with unknown "
+        "allocator");
   }
+
+  // If the storage was allocated with an unknown allocator (neither default
+  // nor IOBuf), there are three obvious solutions, all wrong:
+  //
+  // 1. We could memcpy() into our own IOBuf and proceed as above. This
+  //    doesn't work because the memory might be allocated in an unusual
+  //    way (different address space (CUDA), mlock()ed, unusual alignment
+  //    requirements) and we don't know how to replicate that with IOBuf.
+  //
+  // 2. We could remember the previous allocator and allocator context and
+  //    call that allocator's free method when necessary. This doesn't work
+  //    because TH doesn't manage lifetimes of allocators and allocator
+  //    contexts, so we can't know when a previous allocator and context
+  //    are still valid (not deleted).
+  //
+  // 3. Just as in 2 above, we could remember the previous allocator and
+  //    allocator context, but we'll also keep a reference to the Storage
+  //    object, to prevent the allocator from being deleted. This means that
+  //    the IOBuf has a reference to the Storage (via the free function
+  //    that would ensure that the previous allocator's free method gets
+  //    called) and the Storage has a reference to the IOBuf's memory
+  //    (via IOBufAllocator), so the reference count for either never drops
+  //    to 0, so we have a memory leak.
 
   auto allocator = static_cast<detail::IOBufAllocator*>(
       this->t_->allocatorContext);
@@ -298,24 +302,26 @@ folly::IOBuf Storage<T>::getIOBuf() {
 }
 
 template <class T>
-Storage<T>::Storage(folly::IOBuf&& iob) : Base(nullptr) {
-  setFromIOBuf(std::move(iob));
+Storage<T>::Storage(folly::IOBuf&& iob, bool mayShare) : Base(nullptr) {
+  setFromIOBuf(std::move(iob), mayShare);
 }
 
 template <class T>
-Storage<T>::Storage(ThriftStorage&& in) : Base(nullptr) {
-  setFromIOBuf(detail::deserialize(std::move(in), detail::dataType<T>()));
+Storage<T>::Storage(const ThriftStorage& in, bool mayShare) : Base(nullptr) {
+  setFromIOBuf(detail::deserialize(in, detail::dataType<T>()), mayShare);
 }
 
 template <class T>
-void Storage<T>::setFromIOBuf(folly::IOBuf&& iob) {
+void Storage<T>::setFromIOBuf(folly::IOBuf&& iob, bool mayShare) {
   size_t len = iob.computeChainDataLength();
   if (len % sizeof(T) != 0) {
     throw std::invalid_argument("IOBuf size must be multiple of data size");
   }
   len /= sizeof(T);
   iob.coalesce();
-  iob.unshareOne();
+  if (!mayShare) {
+    iob.unshareOne();
+  }
   T* p = reinterpret_cast<T*>(iob.writableData());
   this->t_ = Ops::_newWithDataAndAllocator(
       p, len,
@@ -329,6 +335,32 @@ void Storage<T>::serialize(ThriftStorage& out,
                            bool mayShare) const {
   detail::serialize(out, const_cast<Storage*>(this)->getIOBuf(),
                     detail::dataType<T>(), endianness, mayShare);
+}
+
+template <class T>
+bool Storage<T>::isUnique(const THType* th) {
+  if (!th) {
+    return true;
+  }
+  if (th->refcount != 1) {
+    return false;
+  }
+  // Even if the refcount is 1, this might share memory with other
+  // resources from the outside world. Not possible with the default allocator.
+  if (th->allocator == &THDefaultAllocator) {
+    return true;
+  }
+
+  // Check all our supported allocators. Currently one.
+  auto iobTHAllocator =
+    &THAllocatorWrapper<detail::IOBufAllocator>::thAllocator;
+  if (th->allocator == iobTHAllocator) {
+    return static_cast<const detail::IOBufAllocator*>(th->allocatorContext)->
+      isUnique(th->data);
+  }
+
+  // Unknown allocator. Be on the safe side.
+  return false;
 }
 
 template <class A>

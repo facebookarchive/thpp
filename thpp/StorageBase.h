@@ -52,8 +52,6 @@ class StorageBase {
   T& at(size_t index) { check(index); return operator[](index); }
   const T& at(size_t index) const { check(index); return operator[](index); }
 
-  bool unique() const { return !t_ || t_->refcount == 1; }
-
   size_t size() const { return t_ ? t_->size : 0; }
 
   static constexpr const char* kLuaTypeName = Ops::kLuaTypeName;

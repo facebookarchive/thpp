@@ -143,7 +143,7 @@ void serialize(
 }
 
 
-template folly::IOBuf deserialize(ThriftTensor& in,
+template folly::IOBuf deserialize(const ThriftTensor& in,
                                   ThriftTensorDataType dtype);
 
 }}  // namespaces

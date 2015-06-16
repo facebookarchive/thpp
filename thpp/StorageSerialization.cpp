@@ -35,7 +35,7 @@ void serialize(
   out.data = std::move(data);
 }
 
-template folly::IOBuf deserialize(ThriftStorage& in,
+template folly::IOBuf deserialize(const ThriftStorage& in,
                                   ThriftTensorDataType dtype);
 
 }}  // namespaces

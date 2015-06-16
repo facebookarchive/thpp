@@ -185,23 +185,33 @@ TEST(SerializationTest, ThriftStorageShare) {
   ThriftStorage serialized;
   storage.serialize(serialized);
   auto ptr = storage.data();
-  auto size = storage.size();
   EXPECT_TRUE(static_cast<const void*>(serialized.data.data()) == ptr);
-  storage = Storage<long>();  // lose the reference from storage
 
-  Storage<long> deserialized(std::move(serialized));
-  EXPECT_EQ(size, deserialized.size());
+  Storage<long> deserialized(serialized);
+  EXPECT_EQ(storage.size(), deserialized.size());
   EXPECT_TRUE(deserialized.data() == ptr);  // shares memory
 }
 
-TEST(SerializationTest, ThriftStorageNoShare) {
+TEST(SerializationTest, ThriftStorageNoShare1) {
+  Storage<long> storage(size_t(1000), long(42));
+  ThriftStorage serialized;
+  storage.serialize(serialized, ThriftTensorEndianness::NATIVE, false);
+  auto ptr = storage.data();
+  EXPECT_FALSE(static_cast<const void*>(serialized.data.data()) == ptr);
+
+  Storage<long> deserialized(serialized);
+  EXPECT_EQ(storage.size(), deserialized.size());
+  EXPECT_FALSE(deserialized.data() == storage.data());  // doesn't share
+}
+
+TEST(SerializationTest, ThriftStorageNoShare2) {
   Storage<long> storage(size_t(1000), long(42));
   ThriftStorage serialized;
   storage.serialize(serialized);
   auto ptr = storage.data();
   EXPECT_TRUE(static_cast<const void*>(serialized.data.data()) == ptr);
 
-  Storage<long> deserialized(std::move(serialized));
+  Storage<long> deserialized(serialized, false);
   EXPECT_EQ(storage.size(), deserialized.size());
   EXPECT_FALSE(deserialized.data() == storage.data());  // doesn't share
 }
@@ -211,6 +221,36 @@ TEST(SerializationTest, ThriftStorageRefs) {
   Storage<long> s1({1000L});
   folly::IOBuf buf1 = s1.getIOBuf();
   buf2 = s1.getIOBuf();
+}
+
+TEST(SerializationTest, IOBufUnique) {
+  folly::IOBuf buf(folly::IOBuf::CREATE, sizeof(int));
+  *reinterpret_cast<int*>(buf.writableData()) = 42;
+  buf.append(sizeof(int));
+
+  // This situation may arise when deserializing: two Storage objects
+  // constructed from the same IOBuf.
+  Tensor<int> t1(Storage<int>(buf), 0, {1L});
+  Tensor<int> t2(Storage<int>(buf), 0, {1L});
+  EXPECT_EQ(42, t1.at(0));
+  EXPECT_EQ(42, t2.at(0));
+
+  // The two tensors are shared
+  EXPECT_FALSE(t1.isUnique());
+  EXPECT_FALSE(t2.isUnique());
+
+  // And they indeed share memory.
+  t1.at(0) = 43;
+  EXPECT_EQ(43, t2.at(0));
+
+  t2 = Tensor<int>();
+
+  // Still marked as shared; "buf" is still in scope and bumping the refcount.
+  EXPECT_FALSE(t1.isUnique());
+
+  // But no longer shared any more after killing buf.
+  buf = folly::IOBuf();
+  EXPECT_TRUE(t1.isUnique());
 }
 
 }}  // namespaces

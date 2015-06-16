@@ -45,6 +45,22 @@ Tensor<T>::Tensor(StorageType storage, offset_type storageOffset,
 }
 
 template <class T>
+Tensor<T>::Tensor(StorageType storage, offset_type storageOffset,
+                  LongRange sizes, LongRange strides)
+  : Tensor(std::move(storage), storageOffset,
+           LongStorage::wrap(detail::makeMutable(sizes)),
+           LongStorage::wrap(detail::makeMutable(strides))) { }
+
+template <class T>
+Tensor<T>::Tensor(StorageType storage, offset_type storageOffset,
+                  std::initializer_list<size_type> sizes,
+                  std::initializer_list<size_type> strides)
+  : Tensor(std::move(storage), storageOffset,
+           LongStorage(sizes.begin(), sizes.end()),
+           LongStorage(strides.begin(), strides.end())) { }
+
+
+template <class T>
 Tensor<T>::Tensor(LongStorage sizes, LongStorage strides) : Tensor() {
   Ops::_setStorage(this->t_, nullptr, 0, sizes.th(), strides.th());
 }
@@ -67,10 +83,10 @@ Tensor<T>::Tensor(const std::vector<size_type>& sizes,
              LongStorage(strides.begin(), strides.end())) { }
 
 template <class T>
-Tensor<T>::Tensor(ThriftTensor&& thriftTensor) : Base(nullptr) {
-  auto buf = detail::deserialize(std::move(thriftTensor),
-                                 detail::dataType<T>());
-  Storage<T> data(std::move(buf));
+Tensor<T>::Tensor(const ThriftTensor& thriftTensor,
+                  bool mayShare) : Base(nullptr) {
+  Storage<T> data(detail::deserialize(thriftTensor, detail::dataType<T>()),
+                  mayShare);
 
   LongStorage s(LongStorage::wrap(detail::makeMutable(LongRange(
       thriftTensor.sizes.data(), thriftTensor.sizes.size()))));
@@ -169,9 +185,9 @@ void Tensor<T>::copy(const Tensor<U>& src) {
 template <class T>
 void Tensor<T>::serialize(ThriftTensor& out,
                           ThriftTensorEndianness endianness,
-                          bool mayShare) {
-  auto buf = Storage<T>(Ops::_storage(this->t_)).getIOBuf();
-  buf.trimStart(Ops::_storageOffset(this->t_) * sizeof(T));
+                          bool mayShare) const {
+  auto buf = Storage<T>(Ops::_storage(this->mut())).getIOBuf();
+  buf.trimStart(Ops::_storageOffset(this->mut()) * sizeof(T));
   detail::serialize(
       out,
       this->sizes(),
