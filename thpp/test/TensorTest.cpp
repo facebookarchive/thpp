@@ -100,8 +100,8 @@ TEST_F(TensorTest, NonFloatEqual) {
 }
 
 TEST_F(TensorTest, FloatEqual) {
-  auto x = Tensor<float>{{1}};
-  auto y = Tensor<float>{{1}};
+  auto x = Tensor<float>{1};
+  auto y = Tensor<float>{1};
   x.at({0}) = 1.0f;
   y.at({0}) = 1.0f;
 
