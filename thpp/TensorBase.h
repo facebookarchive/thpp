@@ -227,7 +227,7 @@ class TensorBase {
 
   // *this = a ./ b
   void cdiv(const TensorBase& a, const TensorBase& b);
-  void cdiv(const TensorBase& b) { cmul(*this, b); }
+  void cdiv(const TensorBase& b) { cdiv(*this, b); }
 
   // *this = a + value * (b .* c)
   void addcmul(const TensorBase& a, T value, const TensorBase& b,
