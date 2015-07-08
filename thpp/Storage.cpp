@@ -56,6 +56,20 @@ bool IOBufAllocator::isUnique(const void* ptr) const {
   return !iob_.isSharedOne();
 }
 
+void applySharingMode(folly::IOBuf& iob, SharingMode sharing) {
+  DCHECK(!iob.isChained());
+  switch (sharing) {
+  case SHARE_NONE:
+    iob.unshareOne();
+    break;
+  case SHARE_IOBUF_MANAGED:
+    iob.makeManagedOne();
+    break;
+  case SHARE_ALL:
+    break;
+  }
+}
+
 }  // namespace detail
 
 }  // namespaces

@@ -24,6 +24,8 @@ namespace thpp {
 
 namespace detail {
 
+void applySharingMode(folly::IOBuf& iob, SharingMode sharing);
+
 // Endianness of current machine.
 constexpr ThriftTensorEndianness gMachineEndianness =
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
@@ -62,7 +64,7 @@ void serialize(ThriftStorage& out,
                folly::IOBuf&& data,
                ThriftTensorDataType dtype,
                ThriftTensorEndianness endianness,
-               bool mayShare);
+               SharingMode sharing);
 
 template <class ThriftObj>
 folly::IOBuf deserialize(const ThriftObj& in,
@@ -302,26 +304,25 @@ folly::IOBuf Storage<T>::getIOBuf() {
 }
 
 template <class T>
-Storage<T>::Storage(folly::IOBuf&& iob, bool mayShare) : Base(nullptr) {
-  setFromIOBuf(std::move(iob), mayShare);
+Storage<T>::Storage(folly::IOBuf&& iob, SharingMode sharing) : Base(nullptr) {
+  setFromIOBuf(std::move(iob), sharing);
 }
 
 template <class T>
-Storage<T>::Storage(const ThriftStorage& in, bool mayShare) : Base(nullptr) {
-  setFromIOBuf(detail::deserialize(in, detail::dataType<T>()), mayShare);
+Storage<T>::Storage(const ThriftStorage& in, SharingMode sharing)
+  : Base(nullptr) {
+  setFromIOBuf(detail::deserialize(in, detail::dataType<T>()), sharing);
 }
 
 template <class T>
-void Storage<T>::setFromIOBuf(folly::IOBuf&& iob, bool mayShare) {
+void Storage<T>::setFromIOBuf(folly::IOBuf&& iob, SharingMode sharing) {
   size_t len = iob.computeChainDataLength();
   if (len % sizeof(T) != 0) {
     throw std::invalid_argument("IOBuf size must be multiple of data size");
   }
   len /= sizeof(T);
   iob.coalesce();
-  if (!mayShare) {
-    iob.unshareOne();
-  }
+  detail::applySharingMode(iob, sharing);
   T* p = reinterpret_cast<T*>(iob.writableData());
   this->t_ = Ops::_newWithDataAndAllocator(
       p, len,
@@ -332,9 +333,9 @@ void Storage<T>::setFromIOBuf(folly::IOBuf&& iob, bool mayShare) {
 template <class T>
 void Storage<T>::serialize(ThriftStorage& out,
                            ThriftTensorEndianness endianness,
-                           bool mayShare) const {
+                           SharingMode sharing) const {
   detail::serialize(out, const_cast<Storage*>(this)->getIOBuf(),
-                    detail::dataType<T>(), endianness, mayShare);
+                    detail::dataType<T>(), endianness, sharing);
 }
 
 template <class T>

@@ -195,7 +195,7 @@ TEST(SerializationTest, ThriftStorageShare) {
 TEST(SerializationTest, ThriftStorageNoShare1) {
   Storage<long> storage(size_t(1000), long(42));
   ThriftStorage serialized;
-  storage.serialize(serialized, ThriftTensorEndianness::NATIVE, false);
+  storage.serialize(serialized, ThriftTensorEndianness::NATIVE, SHARE_NONE);
   auto ptr = storage.data();
   EXPECT_FALSE(static_cast<const void*>(serialized.data.data()) == ptr);
 
@@ -211,7 +211,7 @@ TEST(SerializationTest, ThriftStorageNoShare2) {
   auto ptr = storage.data();
   EXPECT_TRUE(static_cast<const void*>(serialized.data.data()) == ptr);
 
-  Storage<long> deserialized(serialized, false);
+  Storage<long> deserialized(serialized, SHARE_NONE);
   EXPECT_EQ(storage.size(), deserialized.size());
   EXPECT_FALSE(deserialized.data() == storage.data());  // doesn't share
 }

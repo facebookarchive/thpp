@@ -18,7 +18,7 @@ void serialize(
     folly::IOBuf&& data,
     ThriftTensorDataType dtype,
     ThriftTensorEndianness endianness,
-    bool mayShare) {
+    SharingMode sharing) {
   DCHECK(!data.isChained());
   if (endianness == ThriftTensorEndianness::NATIVE) {
     endianness = gMachineEndianness;
@@ -29,9 +29,7 @@ void serialize(
 
   out.dataType = dtype;
   out.endianness = endianness;
-  if (!mayShare) {
-    data.unshareOne();
-  }
+  detail::applySharingMode(data, sharing);
   out.data = std::move(data);
 }
 

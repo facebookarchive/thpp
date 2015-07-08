@@ -47,7 +47,7 @@ class CudaTensor : public TensorBase<T, CudaStorage<T>, CudaTensor<T>> {
 
   // Deserialize from Thrift. Throws if wrong type.
   explicit CudaTensor(const ThriftTensor& thriftTensor,
-                      bool mayShare = true);
+                      SharingMode sharing = SHARE_IOBUF_MANAGED);
 
   // Destructor
   ~CudaTensor();
@@ -103,7 +103,7 @@ class CudaTensor : public TensorBase<T, CudaStorage<T>, CudaTensor<T>> {
   void serialize(ThriftTensor& out,
                  ThriftTensorEndianness endianness =
                      ThriftTensorEndianness::NATIVE,
-                 bool mayShare = true) const;
+                 SharingMode sharing = SHARE_IOBUF_MANAGED) const;
 
   // Copy to CPU
   Tensor<T> toCPU() const;

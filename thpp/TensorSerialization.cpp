@@ -36,7 +36,7 @@ void serialize(
     ThriftTensorDataType dtype,
     size_t elementSize,
     ThriftTensorEndianness endianness,
-    bool mayShare) {
+    SharingMode sharing) {
   DCHECK(!data.isChained());
   if (endianness == ThriftTensorEndianness::NATIVE) {
     endianness = gMachineEndianness;
@@ -93,11 +93,12 @@ void serialize(
     return;
   }
 
-  if (firstContiguousDim == 0 && mayShare) {
+  if (firstContiguousDim == 0) {
     // We're done.
+    DCHECK_GE(data.length(), dataSize);
+    data.trimEnd(data.length() - dataSize);
+    detail::applySharingMode(data, sharing);
     out.data = std::move(data);
-    DCHECK_GE(out.data.length(), dataSize);
-    out.data.trimEnd(out.data.length() - dataSize);
     return;
   }
 
@@ -118,6 +119,17 @@ void serialize(
   counter.resize(firstContiguousDim);
   int idx = firstContiguousDim;
   const uint8_t* src = data.data();
+  bool mayShare = false;
+  switch (sharing) {
+  case SHARE_NONE:
+    break;
+  case SHARE_IOBUF_MANAGED:
+    mayShare = data.isManagedOne();
+    break;
+  case SHARE_ALL:
+    mayShare = true;
+    break;
+  };
   while (idx >= 0) {
     if (idx == firstContiguousDim) {
       if (mayShare && contiguousSize >= kMinCloneSize) {

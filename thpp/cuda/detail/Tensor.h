@@ -149,15 +149,15 @@ template <> struct TensorOps<CudaTensor<float>> {
   }
   static void _indexSelect(THCudaTensor* tensor, THCudaTensor* src, int dim,
                            THLongTensor* index) {
-    THCudaTensor_indexSelect(getTHCState(), tensor, src, dim, index);
+    THCudaTensor_indexSelect_long(getTHCState(), tensor, src, dim, index);
   }
   static void _indexCopy(THCudaTensor* tensor, int dim, THLongTensor* index,
                          THCudaTensor* src) {
-    THCudaTensor_indexCopy(getTHCState(), tensor, dim, index, src);
+    THCudaTensor_indexCopy_long(getTHCState(), tensor, dim, index, src);
   }
   static void _indexFill(THCudaTensor* tensor, int dim, THLongTensor* index,
                          float val) {
-    THCudaTensor_indexFill(getTHCState(), tensor, dim, index, val);
+    THCudaTensor_indexFill_long(getTHCState(), tensor, dim, index, val);
   }
   static float _dot(THCudaTensor* t, THCudaTensor* src) {
     return THCudaTensor_dot(getTHCState(), t, src);

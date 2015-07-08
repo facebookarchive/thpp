@@ -24,7 +24,7 @@ void serialize(
     ThriftTensorDataType dtype,
     size_t elementSize,
     ThriftTensorEndianness endianness,
-    bool mayShare);
+    SharingMode sharing);
 
 template <class ThriftObj>
 folly::IOBuf deserialize(const ThriftObj& in,
@@ -84,9 +84,9 @@ Tensor<T>::Tensor(const std::vector<size_type>& sizes,
 
 template <class T>
 Tensor<T>::Tensor(const ThriftTensor& thriftTensor,
-                  bool mayShare) : Base(nullptr) {
+                  SharingMode sharing) : Base(nullptr) {
   Storage<T> data(detail::deserialize(thriftTensor, detail::dataType<T>()),
-                  mayShare);
+                  sharing);
 
   LongStorage s(LongStorage::wrap(detail::makeMutable(LongRange(
       thriftTensor.sizes.data(), thriftTensor.sizes.size()))));
@@ -185,7 +185,7 @@ void Tensor<T>::copy(const Tensor<U>& src) {
 template <class T>
 void Tensor<T>::serialize(ThriftTensor& out,
                           ThriftTensorEndianness endianness,
-                          bool mayShare) const {
+                          SharingMode sharing) const {
   auto buf = Storage<T>(Ops::_storage(this->mut())).getIOBuf();
   buf.trimStart(Ops::_storageOffset(this->mut()) * sizeof(T));
   detail::serialize(
@@ -196,7 +196,7 @@ void Tensor<T>::serialize(ThriftTensor& out,
       detail::dataType<T>(),
       sizeof(T),
       endianness,
-      mayShare);
+      sharing);
 }
 
 

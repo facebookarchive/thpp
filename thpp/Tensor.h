@@ -98,7 +98,8 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
         std::initializer_list<size_type>());
 
   // Deserialize from Thrift. Throws if wrong type.
-  explicit Tensor(const ThriftTensor& thriftTensor, bool mayShare = true);
+  explicit Tensor(const ThriftTensor& thriftTensor,
+                  SharingMode sharing = SHARE_IOBUF_MANAGED);
 
   // Destructor
   ~Tensor();
@@ -128,13 +129,13 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
   // operation of moveAsTH().
   Tensor& operator=(THType*&& other);
 
-  // Serialize to Thrift. Note that, if mayShare is true, the resulting
-  // ThriftTensor may share memory with *this, so changes in out.data
+  // Serialize to Thrift. Note that, if sharing is not SHARE_NONE, the
+  // resulting ThriftTensor may share memory with *this, so changes in out.data
   // may be reflected in *this.
   void serialize(ThriftTensor& out,
                  ThriftTensorEndianness endianness =
                     ThriftTensorEndianness::NATIVE,
-                 bool mayShare = true) const;
+                 SharingMode sharing = SHARE_IOBUF_MANAGED) const;
 
   // Copy from another tensor
   template <class U>

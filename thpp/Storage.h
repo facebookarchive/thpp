@@ -29,6 +29,19 @@ using folly::Range;
 template <class T> class Tensor;
 template <class T> class CudaTensor;
 
+enum SharingMode {
+  // Do not share memory with the given IOBuf.
+  SHARE_NONE,
+
+  // Share memory managed by IOBuf (no additional bookkeeping required)
+  SHARE_IOBUF_MANAGED,
+
+  // Share all memory, including external buffers (which might require you to
+  // guarantee that such external buffers remain allocated until all IOBuf
+  // and Storage objects that refer to them are visible)
+  SHARE_ALL,
+};
+
 template <class T>
 class Storage : public StorageBase<T, Storage<T>> {
   typedef StorageBase<T, Storage<T>> Base;
@@ -49,14 +62,17 @@ class Storage : public StorageBase<T, Storage<T>> {
   explicit Storage(THType* t);
 
   // Create a Storage object containing the data from an IOBuf.
-  // If mayShare is true, then the Storage object will share memory
+  // If sharing is not SHARE_NONE, then the Storage object will share memory
   // with the IOBuf, at least until either is resized.
-  explicit Storage(folly::IOBuf&& iob, bool mayShare = true);
-  explicit Storage(const folly::IOBuf& iob, bool mayShare = true)
-    : Storage(folly::IOBuf(iob), mayShare) { }
+  explicit Storage(folly::IOBuf&& iob,
+                   SharingMode sharing = SHARE_IOBUF_MANAGED);
+  explicit Storage(const folly::IOBuf& iob,
+                   SharingMode sharing = SHARE_IOBUF_MANAGED)
+    : Storage(folly::IOBuf(iob), sharing) { }
 
   // Deserialize from Thrift. Throws if wrong type.
-  explicit Storage(const ThriftStorage& thriftStorage, bool mayShare = true);
+  explicit Storage(const ThriftStorage& thriftStorage,
+                   SharingMode sharing = SHARE_IOBUF_MANAGED);
 
   // Takes ownership of a range allocated with malloc() (NOT new or new[]!)
   static Storage takeOwnership(Range<T*> data);
@@ -98,7 +114,7 @@ class Storage : public StorageBase<T, Storage<T>> {
   void serialize(ThriftStorage& out,
                  ThriftTensorEndianness endianness =
                      ThriftTensorEndianness::NATIVE,
-                 bool mayShare = true) const;
+                 SharingMode sharing = SHARE_IOBUF_MANAGED) const;
 
   // This is obvious, except on Cuda, where it isn't.
   T read(size_t offset) const {
@@ -128,7 +144,7 @@ class Storage : public StorageBase<T, Storage<T>> {
   template <class U> friend class Tensor;
   template <class U> friend class CudaTensor;
 
-  void setFromIOBuf(folly::IOBuf&& iob, bool mayShare);
+  void setFromIOBuf(folly::IOBuf&& iob, SharingMode sharing);
 };
 
 /**
