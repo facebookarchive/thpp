@@ -253,4 +253,34 @@ TEST(SerializationTest, IOBufUnique) {
   EXPECT_TRUE(t1.isUnique());
 }
 
+TEST(SerializationTest, Alignment) {
+  // large enough so the IOBuf data is out of line
+  constexpr long size = 4096;
+  constexpr size_t maxOffset = alignof(long);
+  for (size_t offset = 0; offset < maxOffset; ++offset) {
+    ThriftTensor serialized;
+    {
+      Tensor<long> t1 {size};
+      for (long i = 0; i < size; ++i) {
+        t1.at({i}) = i;
+      }
+      t1.serialize(serialized);
+    }
+
+    serialized.data.reserve(0, maxOffset);
+    serialized.data.advance(offset);
+
+    Tensor<long> t2(serialized);
+
+    auto ptr = reinterpret_cast<uintptr_t>(t2.data());
+    EXPECT_EQ(0, ptr % alignof(long));
+
+    EXPECT_EQ(1, t2.ndims());
+    EXPECT_EQ(size, t2.size(0));
+    for (long i = 0; i < size; ++i) {
+      EXPECT_EQ(i, t2.at({i}));
+    }
+  }
+}
+
 }}  // namespaces

@@ -321,8 +321,17 @@ void Storage<T>::setFromIOBuf(folly::IOBuf&& iob, SharingMode sharing) {
     throw std::invalid_argument("IOBuf size must be multiple of data size");
   }
   len /= sizeof(T);
+
   iob.coalesce();
   detail::applySharingMode(iob, sharing);
+
+  // Ensure properly aligned, make a copy otherwise. coalesce()
+  // and/or applySharingMode() might have already done that for us,
+  // in which case we're likely already aligned.
+  if ((reinterpret_cast<uintptr_t>(iob.data()) % alignof(T)) != 0) {
+    iob = folly::IOBuf(folly::IOBuf::COPY_BUFFER, iob.data(), iob.length());
+  }
+
   T* p = reinterpret_cast<T*>(iob.writableData());
   this->t_ = Ops::_newWithDataAndAllocator(
       p, len,
