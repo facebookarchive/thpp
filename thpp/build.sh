@@ -16,7 +16,7 @@ if [[ ! -r ./Tensor.h ]]; then
 fi
 
 rm -rf gtest-1.7.0 gtest-1.7.0.zip
-curl -JLO https://googletest.googlecode.com/files/gtest-1.7.0.zip
+curl -JLOk https://googletest.googlecode.com/files/gtest-1.7.0.zip
 if [[ $(sha1sum -b gtest-1.7.0.zip | cut -d' ' -f1) != \
       'f85f6d2481e2c6c4a18539e391aa4ea8ab0394af' ]]; then
   echo "Invalid gtest-1.7.0.zip file" >&2
@@ -27,6 +27,8 @@ unzip gtest-1.7.0.zip
 # Build in a separate directory
 mkdir -p build
 cd build
+
+export CMAKE_LIBRARY_PATH=$(dirname $(which th))/../lib
 
 # Configure
 cmake ..

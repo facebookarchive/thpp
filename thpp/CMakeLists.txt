@@ -49,16 +49,20 @@ SET(src
 SET(h
   Storage.h
   Storage-inl.h
-  StorageSerialization-inl.h
   Tensor.h
   Tensor-inl.h
-  TensorSerialization-inl.h
+  StorageBase.h
+  StorageBase-inl.h
+  TensorBase.h
+  TensorBase-inl.h
 )
 
 SET(h_detail
   detail/Storage.h
+  detail/StorageDefsGeneric.h
   detail/StorageGeneric.h
   detail/Tensor.h
+  detail/TensorDefsGeneric.h
   detail/TensorGeneric.h
 )
 
