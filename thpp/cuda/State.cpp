@@ -45,13 +45,10 @@ folly::ThreadLocal<THCStateHolder> gDefaultTHCState;
 }  // namespace
 
 namespace detail {
-folly::ThreadLocalPtr<THCState> gCurrentTHCState;
-
-THCState* doSetDefaultTHCState() {
-  auto state = gDefaultTHCState->state();
-  setTHCState(state);
-  return state;
-}
+folly::ThreadLocal<THCState*> gCurrentTHCState;
 }  // namespace detail
 
+void setDefaultTHCState() {
+  setTHCState(gDefaultTHCState->state());
+}
 }  // namespaces

@@ -21,22 +21,24 @@ namespace thpp {
 // state)
 
 namespace detail {
-extern folly::ThreadLocalPtr<THCState> gCurrentTHCState;
+extern folly::ThreadLocal<THCState*> gCurrentTHCState;
 THCState* doSetDefaultTHCState();
 }  // namespace
 
-inline THCState* getTHCState() {
-  auto state = detail::gCurrentTHCState.get();
-  return state ? state : detail::doSetDefaultTHCState();
-}
-
 inline void setTHCState(THCState* state) {
   DCHECK(state);
-  detail::gCurrentTHCState.reset(state);
+  *detail::gCurrentTHCState = state;
 }
 
-inline void setDefaultTHCState() {
-  detail::doSetDefaultTHCState();
+void setDefaultTHCState();
+
+inline THCState* getTHCState() {
+  auto& state = *detail::gCurrentTHCState;
+  if (!state) {
+    setDefaultTHCState();
+    DCHECK(state);
+  }
+  return state;
 }
 
 namespace cuda {
