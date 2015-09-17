@@ -22,7 +22,6 @@ namespace thpp {
 
 namespace detail {
 extern folly::ThreadLocal<THCState*> gCurrentTHCState;
-THCState* doSetDefaultTHCState();
 }  // namespace
 
 inline void setTHCState(THCState* state) {
