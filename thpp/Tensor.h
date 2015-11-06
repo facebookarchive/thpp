@@ -106,6 +106,8 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
 
   // Alias other.
   explicit Tensor(THType* other, TensorMustAlias) noexcept;
+  explicit Tensor(Tensor& other, TensorMustAlias) noexcept
+    : Tensor(other.mut(), TensorMustAlias()) { }
 
   // Do not alias other, create separate object (with separate metadata);
   // might still share data with other, unless UNIQUE requested in

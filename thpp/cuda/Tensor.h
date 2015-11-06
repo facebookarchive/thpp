@@ -54,6 +54,8 @@ class CudaTensor : public TensorBase<T, CudaStorage<T>, CudaTensor<T>> {
 
   // Alias other.
   explicit CudaTensor(THType* other, TensorMustAlias) noexcept;
+  explicit CudaTensor(CudaTensor& other, TensorMustAlias) noexcept
+    : CudaTensor(other.mut(), TensorMustAlias()) { }
 
   // Do not alias other, create separate object (with separate metadata);
   // might still share data with other, unless UNIQUE requested in
