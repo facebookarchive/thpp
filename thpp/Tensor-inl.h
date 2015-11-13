@@ -35,9 +35,6 @@ template <class T>
 Tensor<T>::Tensor() : Base(Ops::_new()) { }
 
 template <class T>
-Tensor<T>::Tensor(TensorInvalid) : Base(nullptr) { }
-
-template <class T>
 Tensor<T>::Tensor(StorageType storage, offset_type storageOffset,
                   LongStorage sizes, LongStorage strides) : Tensor() {
   Ops::_setStorage(this->t_, storage.th(), storageOffset, sizes.th(),
@@ -83,95 +80,60 @@ Tensor<T>::Tensor(const std::vector<size_type>& sizes,
              LongStorage(strides.begin(), strides.end())) { }
 
 template <class T>
-Tensor<T>::Tensor(const ThriftTensor& thriftTensor,
-                  SharingMode sharing) : Base(nullptr) {
+auto Tensor<T>::deserializeTH(const ThriftTensor& thriftTensor,
+                              SharingMode sharing) -> THType* {
   Storage<T> data(detail::deserialize(thriftTensor, detail::dataType<T>()),
                   sharing);
 
   LongStorage s(LongStorage::wrap(detail::makeMutable(LongRange(
       thriftTensor.sizes.data(), thriftTensor.sizes.size()))));
 
-  this->t_ = Ops::_newWithStorage(data.th(), 0, s.th(), nullptr);
-  DCHECK_EQ(data.size(), this->size());
+  return Ops::_newWithStorage(data.th(), 0, s.th(), nullptr);
 }
 
 template <class T>
-Tensor<T>::~Tensor() {
-  this->destroy();
+Tensor<T>::Tensor(const ThriftTensor& thriftTensor,
+                  SharingMode sharing)
+  : Base(deserializeTH(thriftTensor, sharing)) {
+  DCHECK_EQ(this->storage().size(), this->size());
 }
 
 template <class T>
-Tensor<T>::Tensor(THType* other, TensorMustAlias) noexcept : Base(other) {
-  Ops::_retain(this->t_);
-}
-
-template <class T>
-Tensor<T>::Tensor(Tensor&& other) noexcept : Base(other.t_) {
-  other.t_ = nullptr;
-}
-
-template <class T>
-Tensor<T>::Tensor(Tensor&& other, unsigned cloneMode) {
-  if ((other.mode() & cloneMode) != cloneMode) {
-    this->t_ = Ops::_newClone(other.mut());
-    other.destroy();
-  } else {
-    this->t_ = other.t_;
-    other.t_ = nullptr;
+Tensor<T>::Tensor(detail::SetTH, THType* t, bool incRef)
+  : Base(t) {
+  DCHECK(t);
+  if (incRef) {
+    Ops::_retain(this->t_);
   }
 }
 
 template <class T>
-Tensor<T>::Tensor(const THType* other, unsigned cloneMode) {
-  if ((cloneMode & Base::UNIQUE) ||
-      ((cloneMode & Base::CONTIGUOUS) && !Base::isContiguous(other))) {
-    this->t_ = Ops::_newClone(Base::mut(other));
-  } else {
-    this->t_ = Ops::_newWithTensor(Base::mut(other));
-  }
-}
-
-template <class T>
-Tensor<T>::Tensor(THType*&& other) : Base(std::move(other)) { }
+Tensor<T>::Tensor(const THType* other, unsigned cloneMode)
+  : Base(Base::cloneTH(other, cloneMode)) { }
 
 template <class T>
 Tensor<T>::Tensor(const Tensor& other, unsigned cloneMode)
   : Tensor(other.t_, cloneMode) { }
 
 template <class T>
-auto Tensor<T>::operator=(Tensor&& other) noexcept -> Tensor& {
-  if (&other != this) {
-    if (this->t_) {
-      // Careful. If a and b alias each other (a.t_ == b.t_), that assumption
-      // must continue to hold if we do a = std::move(c). So the obvious
-      // "t_ = other.t_; other.t_ = nullptr;" will not work.
-      Ops::_set(this->t_, other.t_);
-      other.destroy();
-    } else {
-      this->t_ = other.t_;
-      other.t_ = nullptr;
-    }
-  }
-  return *this;
+Tensor<T>::Tensor(Tensor&& other, unsigned cloneMode)
+  : Tensor(other, cloneMode) {
+  other.clear();
 }
 
 template <class T>
 auto Tensor<T>::operator=(const Tensor& other) -> Tensor& {
   if (&other != this) {
-    if (this->t_) {
-      Ops::_set(this->t_, other.mut());
-    } else {
-      this->t_ = Ops::_newWithTensor(other.mut());
-    }
+    Ops::_set(this->t_, other.mut());
   }
   return *this;
 }
 
 template <class T>
-auto Tensor<T>::operator=(THType*&& other) -> Tensor& {
-  if (other != this->t_) {
-    this->destroy();
-    this->t_ = std::move(other);
+auto Tensor<T>::operator=(Tensor&& other) -> Tensor& {
+  if (&other != this) {
+    *this = other;
+    other.clear();
   }
   return *this;
 }

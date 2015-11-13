@@ -15,9 +15,6 @@ template <class T>
 CudaTensor<T>::CudaTensor() : Base(Ops::_new()) { }
 
 template <class T>
-CudaTensor<T>::CudaTensor(TensorInvalid) : Base(nullptr) { }
-
-template <class T>
 CudaTensor<T>::CudaTensor(StorageType storage, offset_type storageOffset,
                           LongStorage sizes, LongStorage strides)
   : CudaTensor() {
@@ -61,83 +58,41 @@ CudaTensor<T>::CudaTensor(const ThriftTensor& thriftTensor, SharingMode sharing)
 }
 
 template <class T>
-CudaTensor<T>::~CudaTensor() {
-  this->destroy();
-}
-
-template <class T>
-CudaTensor<T>::CudaTensor(THType* other, TensorMustAlias) noexcept
-  : Base(other) {
-  Ops::_retain(this->t_);
-}
-
-template <class T>
-CudaTensor<T>::CudaTensor(CudaTensor&& other) noexcept : Base(other.t_) {
-  other.t_ = nullptr;
-}
-
-template <class T>
-CudaTensor<T>::CudaTensor(CudaTensor&& other, unsigned cloneMode) {
-  if ((other.mode() & cloneMode) != cloneMode) {
-    this->t_ = Ops::_newClone(other.mut());
-    other.destroy();
-  } else {
-    this->t_ = other.t_;
-    other.t_ = nullptr;
+CudaTensor<T>::CudaTensor(detail::SetTH, THType* t, bool incRef)
+  : Base(t) {
+  DCHECK(t);
+  if (incRef) {
+    Ops::_retain(this->t_);
   }
 }
 
 template <class T>
-CudaTensor<T>::CudaTensor(const THType* other, unsigned cloneMode) {
-  if ((cloneMode & Base::UNIQUE) ||
-      ((cloneMode & Base::CONTIGUOUS) && !Base::isContiguous(other))) {
-    this->t_ = Ops::_newClone(Base::mut(other));
-  } else {
-    this->t_ = Ops::_newWithTensor(Base::mut(other));
-  }
-}
-
-template <class T>
-CudaTensor<T>::CudaTensor(THType*&& other) : Base(std::move(other)) { }
+CudaTensor<T>::CudaTensor(const THType* other, unsigned cloneMode)
+  : Base(Base::cloneTH(other, cloneMode)) { }
 
 template <class T>
 CudaTensor<T>::CudaTensor(const CudaTensor& other, unsigned cloneMode)
   : CudaTensor(other.t_, cloneMode) { }
 
 template <class T>
-auto CudaTensor<T>::operator=(CudaTensor&& other) noexcept -> CudaTensor& {
-  if (&other != this) {
-    if (this->t_) {
-      // Careful. If a and b alias each other (a.t_ == b.t_), that assumption
-      // must continue to hold if we do a = std::move(c). So the obvious
-      // "t_ = other.t_; other.t_ = nullptr;" will not work.
-      Ops::_set(this->t_, other.t_);
-      other.destroy();
-    } else {
-      this->t_ = other.t_;
-      other.t_ = nullptr;
-    }
-  }
-  return *this;
+CudaTensor<T>::CudaTensor(CudaTensor&& other, unsigned cloneMode)
+  : CudaTensor(other, cloneMode) {
+  other.clear();
 }
 
 template <class T>
 auto CudaTensor<T>::operator=(const CudaTensor& other) -> CudaTensor& {
   if (&other != this) {
-    if (this->t_) {
-      Ops::_set(this->t_, other.mut());
-    } else {
-      this->t_ = Ops::_newWithTensor(other.mut());
-    }
+    Ops::_set(this->t_, other.mut());
   }
   return *this;
 }
 
 template <class T>
-auto CudaTensor<T>::operator=(THType*&& other) -> CudaTensor& {
-  if (other != this->t_) {
-    this->destroy();
-    this->t_ = std::move(other);
+auto CudaTensor<T>::operator=(CudaTensor&& other) -> CudaTensor& {
+  if (&other != this) {
+    *this = other;
+    other.clear();
   }
   return *this;
 }
@@ -167,23 +122,23 @@ void CudaTensor<T>::copyTo(Tensor<U>& dest) const {
 }
 
 template <class T>
-Tensor<T> CudaTensor<T>::toCPU() const {
-  Tensor<T> cpuTensor(this->sizes());
-  copyTo(cpuTensor);
+typename Tensor<T>::Ptr CudaTensor<T>::toCPU() const {
+  auto cpuTensor = Tensor<T>::makePtr(this->sizes());
+  copyTo(*cpuTensor);
   return cpuTensor;
 }
 
 template <class T>
-CudaTensor<T> CudaTensor<T>::toDevice(int device) const {
+auto CudaTensor<T>::toDevice(int device) const -> Ptr {
   int currentDevice = getDevice();
   if (currentDevice == -1 || currentDevice == device) {
-    return *this;
+    return this->copyPtr();
   }
   cuda::DeviceGuard guard;
   cuda::setDevice(device);
-  CudaTensor<T> result;
-  result.resizeAs(*this);
-  result.copy(*this);
+  auto result = CudaTensor<T>::makePtr();
+  result->resizeAs(*this);
+  result->copy(*this);
   return result;
 }
 
@@ -219,7 +174,7 @@ template <class T>
 void CudaTensor<T>::serialize(ThriftTensor& out,
                               ThriftTensorEndianness endianness,
                               SharingMode sharing) const {
-  toCPU().serialize(out, endianness, SHARE_ALL);
+  toCPU()->serialize(out, endianness, SHARE_ALL);
 }
 
 }  // namespaces

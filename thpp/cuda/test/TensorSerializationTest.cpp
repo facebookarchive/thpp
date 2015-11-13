@@ -57,9 +57,9 @@ void runTest(std::vector<long> sizes,
   CudaTensor<float> deserializedCuda(std::move(serialized));
   auto deserialized = deserializedCuda.toCPU();
 
-  EXPECT_TRUE(src.sizes() == deserialized.sizes());
-  EXPECT_TRUE(src.strides() == deserialized.strides());
-  EXPECT_EQ(0, memcmp(src.data(), deserialized.data(),
+  EXPECT_TRUE(src.sizes() == deserialized->sizes());
+  EXPECT_TRUE(src.strides() == deserialized->strides());
+  EXPECT_EQ(0, memcmp(src.data(), deserialized->data(),
                       sizeof(float) * src.size()));
 }
 

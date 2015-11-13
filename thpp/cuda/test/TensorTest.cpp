@@ -8,6 +8,8 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <thpp/test/CommonTestLib.h>
+
 namespace thpp { namespace test {
 
 class TensorTest : public testing::Test {
@@ -48,13 +50,13 @@ CudaFloatTensor TensorTest::create(long bias) {
 void TensorTest::check2DTensor(const CudaFloatTensor& ca, float a11, float a12,
                                float a21, float a22) {
   auto a = ca.toCPU();
-  EXPECT_EQ(2, a.ndims());
-  EXPECT_LE(2, a.size(0));
-  EXPECT_LE(2, a.size(1));
-  EXPECT_EQ(a11, a[0][0].front());
-  EXPECT_EQ(a12, a[0][1].front());
-  EXPECT_EQ(a21, a[1][0].front());
-  EXPECT_EQ(a22, a[1][1].front());
+  EXPECT_EQ(2, a->ndims());
+  EXPECT_LE(2, a->size(0));
+  EXPECT_LE(2, a->size(1));
+  EXPECT_EQ(a11, (*a)[0][0].front());
+  EXPECT_EQ(a12, (*a)[0][1].front());
+  EXPECT_EQ(a21, (*a)[1][0].front());
+  EXPECT_EQ(a22, (*a)[1][1].front());
 }
 
 TEST_F(TensorTest, Simple) {
@@ -86,6 +88,14 @@ TEST_F(TensorTest, At) {
   a.transpose(1, 0);
   a.transpose();
   EXPECT_EQ(50403, a.at({2, 3, 4}));
+}
+
+TEST_F(TensorTest, UniqueMove) {
+  testUniqueMove<CudaTensor<float>>();
+}
+
+TEST_F(TensorTest, TensorPtr) {
+  testTensorPtr<CudaTensor<float>>();
 }
 
 }}  // namespaces

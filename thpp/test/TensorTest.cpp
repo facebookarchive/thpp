@@ -13,6 +13,8 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <thpp/test/CommonTestLib.h>
+
 namespace thpp {
 namespace test {
 
@@ -165,6 +167,27 @@ TEST_F(TensorTest, Str) {
   auto x = Tensor<float>{{2,3,4}};
 
   EXPECT_EQ("torch.FloatTensor(2x3x4)", x.str());
+}
+
+TEST_F(TensorTest, NoAliasing) {
+  auto x = Tensor<long>{{2}};
+  x.fill(1);
+  EXPECT_EQ(2, x.sumall());
+
+  auto y = x;
+  y.resize({4});
+  y.fill(2);
+
+  EXPECT_EQ(4, x.sumall());
+  EXPECT_EQ(8, y.sumall());
+}
+
+TEST_F(TensorTest, UniqueMove) {
+  testUniqueMove<Tensor<long>>();
+}
+
+TEST_F(TensorTest, TensorPtr) {
+  testTensorPtr<Tensor<long>>();
 }
 
 }}  // namespaces

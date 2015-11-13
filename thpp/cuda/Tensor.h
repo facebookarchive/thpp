@@ -16,16 +16,16 @@ template <class T>
 class CudaTensor : public TensorBase<T, CudaStorage<T>, CudaTensor<T>> {
   typedef TensorBase<T, CudaStorage<T>, CudaTensor<T>> Base;
   typedef typename Base::Ops Ops;
+  friend class TensorPtr<CudaTensor>;
  public:
   typedef typename Base::StorageType StorageType;
   typedef typename Base::offset_type offset_type;
   typedef typename Base::size_type size_type;
   typedef typename Base::THType THType;
+  typedef typename Base::Ptr Ptr;
 
   // Default constructor; construct an empty, zero-dimensional Tensor.
   CudaTensor();
-
-  explicit CudaTensor(TensorInvalid);
 
   CudaTensor(StorageType storage, offset_type storageOffset,
              LongStorage sizes, LongStorage strides = LongStorage());
@@ -49,35 +49,19 @@ class CudaTensor : public TensorBase<T, CudaStorage<T>, CudaTensor<T>> {
   explicit CudaTensor(const ThriftTensor& thriftTensor,
                       SharingMode sharing = SHARE_IOBUF_MANAGED);
 
-  // Destructor
-  ~CudaTensor();
-
-  // Alias other.
-  explicit CudaTensor(THType* other, TensorMustAlias) noexcept;
-  explicit CudaTensor(CudaTensor& other, TensorMustAlias) noexcept
-    : CudaTensor(other.mut(), TensorMustAlias()) { }
-
   // Do not alias other, create separate object (with separate metadata);
   // might still share data with other, unless UNIQUE requested in
   // cloneMode.
   explicit CudaTensor(const THType* other, unsigned cloneMode = 0);
 
-  // Take ownership of the given THType*. This is the reverse
-  // operation of moveAsTH().
-  explicit CudaTensor(THType*&& other);
-
   // Move/copy constructors. Enforce requested mode.
-  /* implicit */ CudaTensor(CudaTensor&& other) noexcept;
-  /* may throw */ CudaTensor(CudaTensor&& other, unsigned cloneMode);
   /* implicit */ CudaTensor(const CudaTensor& other, unsigned cloneMode = 0);
+  /* implicit */ /* may throw */ CudaTensor(
+      CudaTensor&& other, unsigned cloneMode = 0);
 
   // Move/copy assignment operators. Will share memory with "other".
-  CudaTensor& operator=(CudaTensor&& other) noexcept;
   CudaTensor& operator=(const CudaTensor& other);
-
-  // Take ownership of the given THType*. This is the reverse
-  // operation of moveAsTH().
-  CudaTensor& operator=(THType*&& other);
+  /* noexcept override */ CudaTensor& operator=(CudaTensor&& other);
 
   T at(offset_type idx) const { return at({idx}); }
   T at(std::initializer_list<offset_type> indices) const;
@@ -108,10 +92,13 @@ class CudaTensor : public TensorBase<T, CudaStorage<T>, CudaTensor<T>> {
                  SharingMode sharing = SHARE_IOBUF_MANAGED) const;
 
   // Copy to CPU
-  Tensor<T> toCPU() const;
+  typename Tensor<T>::Ptr toCPU() const;
 
   // Copy to given CUDA device, unless already there.
-  CudaTensor<T> toDevice(int device) const;
+  Ptr toDevice(int device) const;
+
+ private:
+  CudaTensor(detail::SetTH, THType* t, bool incRef);
 };
 
 template <class D, class S>

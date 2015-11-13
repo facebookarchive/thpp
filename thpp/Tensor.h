@@ -19,29 +19,9 @@
 
 namespace thpp {
 
-struct TensorInvalid {};
-struct TensorMustAlias {};
-
 /**
  * A Tensor wraps a pointer to a THTensor, and as such it has reference-counted
- * pointer semantics. Unlike shared_ptr, the reference count is NOT atomic, and
- * so Tensor objects may not be shared between threads.
- *
- * There are two levels of sharing (sigh): Tensor objects may alias each other
- * (they point to the same object underneath), and tensor objects that don't
- * alias each other may share storage.
- *
- * Assignment (operator=) assigns to the pointed-to object. If two tensors
- * alias each other, they will always behave identically (they are the same
- * object) and so will continue to alias each other after one is
- * assigned to.
- *
- * The only way to break aliasing is through destruction.
- *
- * It is recommended that you only use aliasing when interfacing with Lua
- * (when creating a Tensor that wraps an existing THTensor*, aka an existing
- * Lua object, and you want metadata modifications in your Tensor to reflect
- * in the underlying Lua object).
+ * pointer semantics.
  *
  * Tensors may also share memory with other tensors. Operations that
  * manipulate metadata (select, transpose, etc) will make source and
@@ -62,6 +42,8 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
   typedef typename Base::Ops Ops;
   template <class U> friend class Tensor;
   template <class U> friend class CudaTensor;
+  friend class TensorPtr<Tensor>;
+
  public:
   typedef typename Base::StorageType StorageType;
   typedef typename Base::offset_type offset_type;
@@ -70,8 +52,6 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
 
   // Default constructor; construct an empty, zero-dimensional Tensor.
   Tensor();
-
-  explicit Tensor(TensorInvalid);
 
   Tensor(StorageType storage, offset_type storageOffset,
          LongStorage sizes, LongStorage strides = LongStorage());
@@ -101,35 +81,18 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
   explicit Tensor(const ThriftTensor& thriftTensor,
                   SharingMode sharing = SHARE_IOBUF_MANAGED);
 
-  // Destructor
-  ~Tensor();
-
-  // Alias other.
-  explicit Tensor(THType* other, TensorMustAlias) noexcept;
-  explicit Tensor(Tensor& other, TensorMustAlias) noexcept
-    : Tensor(other.mut(), TensorMustAlias()) { }
-
   // Do not alias other, create separate object (with separate metadata);
   // might still share data with other, unless UNIQUE requested in
   // cloneMode.
   explicit Tensor(const THType* other, unsigned cloneMode = 0);
 
-  // Take ownership of the given THType*. This is the reverse
-  // operation of moveAsTH().
-  explicit Tensor(THType*&& other);
-
   // Move/copy constructors. Enforce requested mode.
-  /* implicit */ Tensor(Tensor&& other) noexcept;
-  /* may throw */ Tensor(Tensor&& other, unsigned cloneMode);
   /* implicit */ Tensor(const Tensor& other, unsigned cloneMode = 0);
+  /* implicit */ /* may throw */ Tensor(Tensor&& other, unsigned cloneMode = 0);
 
   // Move/copy assignment operators. Will share memory with "other".
-  Tensor& operator=(Tensor&& other) noexcept;
   Tensor& operator=(const Tensor& other);
-
-  // Take ownership of the given THType*. This is the reverse
-  // operation of moveAsTH().
-  Tensor& operator=(THType*&& other);
+  /* noexcept override */ Tensor& operator=(Tensor&& other);
 
   // Serialize to Thrift. Note that, if sharing is not SHARE_NONE, the
   // resulting ThriftTensor may share memory with *this, so changes in out.data
@@ -160,6 +123,12 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
 
   // <min, argmin>
   std::pair<Tensor, Tensor<long>> min(int dim) const;
+
+ private:
+  Tensor(detail::SetTH, THType* t, bool incRef);
+
+  static THType* deserializeTH(const ThriftTensor& thriftTensor,
+                               SharingMode sharing);
 };
 
 template <class D, class S>

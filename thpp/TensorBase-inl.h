@@ -29,6 +29,20 @@ inline const Derived& D(const TensorBase<T, StorageT, Derived>& v) {
 }  // namespace detail
 
 template <class T, class StorageT, class Derived>
+TensorBase<T, StorageT, Derived>::TensorBase(THType* t) : t_(t) {
+  DCHECK(t_);
+}
+
+template <class T, class StorageT, class Derived>
+TensorBase<T, StorageT, Derived>::~TensorBase() {
+  DCHECK(t_);
+  Ops::_free(t_);
+#ifndef NDEBUG
+  t_ = nullptr;
+#endif
+}
+
+template <class T, class StorageT, class Derived>
 void TensorBase<T, StorageT, Derived>::force(unsigned newMode) {
   if ((mode() & newMode) == newMode)
     return;
@@ -398,24 +412,19 @@ auto TensorBase<T, StorageT, Derived>::sign() const -> Derived {
 }
 
 template <class T, class StorageT, class Derived>
+auto TensorBase<T, StorageT, Derived>::cloneTH(const THType* other,
+                                               unsigned cloneMode) -> THType* {
+  if ((cloneMode & UNIQUE) ||
+      ((cloneMode & CONTIGUOUS) && !isContiguous(other))) {
+    return Ops::_newClone(mut(other));
+  }
+
+  return Ops::_newWithTensor(mut(other));
+}
+
+template <class T, class StorageT, class Derived>
 void TensorBase<T, StorageT, Derived>::clear() {
   Ops::_setStorage(t_, nullptr, 0, nullptr, nullptr);
-}
-
-template <class T, class StorageT, class Derived>
-void TensorBase<T, StorageT, Derived>::destroy() {
-  if (t_) {
-    Ops::_free(t_);
-    t_ = nullptr;
-  }
-}
-
-template <class T, class StorageT, class Derived>
-auto TensorBase<T, StorageT, Derived>::moveAsTH() -> THType* {
-  using std::swap;
-  THType* out = nullptr;
-  swap(out, t_);
-  return out;
 }
 
 template <class T, class StorageT, class Derived>

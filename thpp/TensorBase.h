@@ -11,6 +11,7 @@
 #include <vector>
 #include <folly/Range.h>
 #include <thpp/Storage.h>
+#include <thpp/TensorPtr.h>
 
 namespace thpp {
 
@@ -22,16 +23,39 @@ template <class T> struct TensorOps;
 
 template <class T, class StorageT, class Derived>
 class TensorBase {
+  friend class TensorPtr<Derived>;
  protected:
   typedef detail::TensorOps<Derived> Ops;
 
  public:
+  typedef TensorPtr<Derived> Ptr;
   typedef typename Ops::type THType;
   typedef StorageT StorageType;
   typedef T value_type;
   typedef typename Ops::accurate_type accurate_type;
   typedef long size_type;
   typedef long offset_type;
+  typedef std::true_type IsRelocatable;
+
+  template <class... Args>
+  static Ptr makePtr(Args&&... args) {
+    return makeTensorPtr<Derived>(std::forward<Args>(args)...);
+  }
+
+  // Ayiee. Uniform initialization and perfect forwarding don't play well
+  // togethr. Explicit specialization.
+  static Ptr makePtr(std::initializer_list<size_type> sizes,
+                     std::initializer_list<size_type> strides =
+                       std::initializer_list<size_type>()) {
+    return makeTensorPtr<Derived>(std::move(sizes), std::move(strides));
+  }
+
+  Ptr copyPtr() const {
+    return makePtr(*D());
+  }
+
+  THType* asTH() { return t_; }
+  const THType* asTH() const { return t_; }
 
   // Tensor mode. Bitwise OR of:
   // UNIQUE: this tensor is unique and does not share storage with any
@@ -43,10 +67,6 @@ class TensorBase {
   };
 
   static constexpr const char* kLuaTypeName = Ops::kLuaTypeName;
-
-  // Get a pointer to the underlying TH object; *this releases ownership
-  // of that object.
-  THType* moveAsTH();
 
   // Force the tensor to have a certain mode. May copy data.
   void force(unsigned mode);
@@ -325,9 +345,10 @@ class TensorBase {
  protected:
   size_t offsetOf(std::initializer_list<offset_type> indices) const;
 
-  TensorBase() { }  // leaves t_ uninitialized
-  explicit TensorBase(THType* t) : t_(t) { }
-  void destroy();
+  static THType* cloneTH(const THType* other, unsigned cloneMode);
+
+  explicit TensorBase(THType* t);
+  ~TensorBase();
   THType* mut() const { return mut(t_); }
   static THType* mut(const THType* th) { return const_cast<THType*>(th); }
 
@@ -404,6 +425,15 @@ struct IsTensor<
                  typename T::StorageType,
                  T>,
       T>::value>::type>
+  : public std::true_type { };
+
+template <class T, class Enable=void>
+struct IsTensorPtr : public std::false_type { };
+
+template <class T>
+struct IsTensorPtr<
+  TensorPtr<T>,
+  typename std::enable_if<IsTensor<T>::value>::type>
   : public std::true_type { };
 
 }  // namespaces
