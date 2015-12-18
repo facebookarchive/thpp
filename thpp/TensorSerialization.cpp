@@ -22,7 +22,7 @@ std::unique_ptr<folly::IOBuf> partialCloneOne(const folly::IOBuf& buf,
   DCHECK_LE(offset + length, buf.length());
   auto cloned = buf.cloneOne();
   cloned->trimStart(offset);
-  cloned->trimEnd(length - cloned->length());
+  cloned->trimEnd(cloned->length() - length);
   return cloned;
 }
 

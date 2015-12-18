@@ -283,4 +283,21 @@ TEST(SerializationTest, Alignment) {
   }
 }
 
+TEST(SerializationTest, BigTensorNarrow) {
+  auto t = thpp::Tensor<float>({32, 256, 6, 6});
+  t.zero();
+
+  auto t2 = t;
+  t2.narrow(1, 128, 128);
+  t2.fill(1);
+  EXPECT_EQ(32 * 128 * 6 * 6, t.sumall());  // other elements are 0
+  EXPECT_EQ(32 * 128 * 6 * 6, t2.sumall());
+
+  ThriftTensor serialized;
+  t2.serialize(serialized);
+
+  auto t3 = thpp::Tensor<float>(serialized);
+  EXPECT_EQ(32 * 128 * 6 * 6, t3.sumall());
+}
+
 }}  // namespaces
