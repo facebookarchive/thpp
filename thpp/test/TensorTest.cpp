@@ -170,7 +170,7 @@ TEST_F(TensorTest, Str) {
 }
 
 TEST_F(TensorTest, NoAliasing) {
-  auto x = Tensor<long>{{2}};
+  auto x = Tensor<long>{2};
   x.fill(1);
   EXPECT_EQ(2, x.sumall());
 
