@@ -251,7 +251,7 @@ template <> struct TensorOps<CudaTensor<float>> {
       } \
   template <> inline void TensorOps<CudaTensor<float>>::_copyTo< \
       TH##TYPE##Tensor>(TH##TYPE##Tensor* dest, THCudaTensor* src) { \
-        return TH##TYPE##Tensor_copyCuda(getTHCState(), dest, src); \
+        return TH##TYPE##Tensor_copyCudaFloat(getTHCState(), dest, src); \
       }
 
 S(Byte)
