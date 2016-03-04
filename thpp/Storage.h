@@ -11,16 +11,29 @@
 #ifndef THPP_STORAGE_H_
 #define THPP_STORAGE_H_
 
-#include <thpp/StorageBase.h>
-#include <thpp/detail/Storage.h>
+#ifndef DCHECK
+#include <cassert>
+#define DCHECK(x) assert(x)
+#endif
+
+#include <initializer_list>
+#include <memory>
+#ifndef NO_THRIFT
 #include <thpp/if/gen-cpp2/Tensor_types.h>
+#endif
+#ifndef NO_FOLLY
 #include <folly/Malloc.h>
 #include <folly/Range.h>
 #include <folly/io/IOBuf.h>
+#endif
+#include <thpp/StorageBase.h>
+#include <thpp/detail/Storage.h>
 
 namespace thpp {
 
+#ifndef NO_FOLLY
 using folly::Range;
+#endif
 
 /**
  * Wrapper around TH's Storage type, which is a length-aware,
@@ -29,6 +42,7 @@ using folly::Range;
 template <class T> class Tensor;
 template <class T> class CudaTensor;
 
+#ifndef NO_FOLLY
 enum SharingMode {
   // Do not share memory with the given IOBuf.
   SHARE_NONE,
@@ -41,6 +55,7 @@ enum SharingMode {
   // and Storage objects that refer to them are visible)
   SHARE_ALL,
 };
+#endif
 
 template <class T>
 class Storage : public StorageBase<T, Storage<T>> {
@@ -56,10 +71,15 @@ class Storage : public StorageBase<T, Storage<T>> {
   template <class It> Storage(It begin, It end);
   Storage(size_t n, T value);
 
+  explicit Storage(THType* t);
+
+////////////////////////////////////////////////////////////////////////////////
+#ifndef NO_FOLLY
+////////////////////////////////////////////////////////////////////////////////
+
   explicit Storage(Range<const T*> range)
     : Storage(range.begin(), range.end()) { }
 
-  explicit Storage(THType* t);
 
   // Create a Storage object containing the data from an IOBuf.
   // If sharing is not SHARE_NONE, then the Storage object will share memory
@@ -70,9 +90,11 @@ class Storage : public StorageBase<T, Storage<T>> {
                    SharingMode sharing = SHARE_IOBUF_MANAGED)
     : Storage(folly::IOBuf(iob), sharing) { }
 
+#if !defined(NO_THRIFT) && !defined(NO_FOLLY)
   // Deserialize from Thrift. Throws if wrong type.
   explicit Storage(const ThriftStorage& thriftStorage,
                    SharingMode sharing = SHARE_IOBUF_MANAGED);
+#endif
 
   // Takes ownership of a range allocated with malloc() (NOT new or new[]!)
   static Storage takeOwnership(Range<T*> data);
@@ -81,15 +103,19 @@ class Storage : public StorageBase<T, Storage<T>> {
   // objects that refer to it are gone.
   static Storage wrap(Range<T*> data);
 
-  // Use a custom allocator. The allocator is managed by the caller.
-  static Storage withAllocator(THAllocator* allocator,
-                               void* allocatorContext);
-
   // Wrap a range of memory and use a custom allocator for reallocations.
   // You probably don't need this.
   static Storage wrapWithAllocator(Range<T*> data,
                                    THAllocator* allocator,
                                    void* allocatorContext);
+
+////////////////////////////////////////////////////////////////////////////////
+#endif // !NO_FOLLY
+////////////////////////////////////////////////////////////////////////////////
+
+  // Use a custom allocator. The allocator is managed by the caller.
+  static Storage withAllocator(THAllocator* allocator,
+                               void* allocatorContext);
 
   ~Storage();
 
@@ -103,6 +129,10 @@ class Storage : public StorageBase<T, Storage<T>> {
   template <class It> void assign(It begin, It end);
   void assign(size_t n, T value);
 
+////////////////////////////////////////////////////////////////////////////////
+#ifndef NO_FOLLY
+////////////////////////////////////////////////////////////////////////////////
+
   // Create a IOBuf that wraps the memory currently allocated to this
   // storage offset. The memory won't be freed until all references to it
   // are gone, either from IOBufs or from Storage objects. Note that
@@ -110,11 +140,13 @@ class Storage : public StorageBase<T, Storage<T>> {
   // returned IOBuf any more.
   folly::IOBuf getIOBuf();
 
+#if !defined(NO_THRIFT) && !defined(NO_FOLLY)
   // Serialize to Thrift.
   void serialize(ThriftStorage& out,
                  ThriftTensorEndianness endianness =
                      ThriftTensorEndianness::NATIVE,
                  SharingMode sharing = SHARE_IOBUF_MANAGED) const;
+#endif
 
   // This is obvious, except on Cuda, where it isn't.
   T read(size_t offset) const {
@@ -137,6 +169,10 @@ class Storage : public StorageBase<T, Storage<T>> {
     memcpy(this->data() + offset, src, n * sizeof(T));
   }
 
+////////////////////////////////////////////////////////////////////////////////
+#endif // !NO_FOLLY
+////////////////////////////////////////////////////////////////////////////////
+
   bool isUnique() const { return isUnique(this->t_); }
   static bool isUnique(const THType* th);
 
@@ -144,7 +180,9 @@ class Storage : public StorageBase<T, Storage<T>> {
   template <class U> friend class Tensor;
   template <class U> friend class CudaTensor;
 
+#ifndef NO_FOLLY
   void setFromIOBuf(folly::IOBuf&& iob, SharingMode sharing);
+#endif
 };
 
 /**
