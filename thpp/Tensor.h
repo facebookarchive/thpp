@@ -14,8 +14,12 @@
 #include <thpp/Storage.h>
 #include <thpp/TensorBase.h>
 #include <thpp/detail/Tensor.h>
+#ifndef NO_THRIFT
 #include <thpp/if/gen-cpp2/Tensor_types.h>
+#endif
+#ifndef NO_FOLLY
 #include <folly/io/IOBuf.h>
+#endif
 
 namespace thpp {
 
@@ -56,8 +60,10 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
   Tensor(StorageType storage, offset_type storageOffset,
          LongStorage sizes, LongStorage strides = LongStorage());
 
+#ifndef NO_FOLLY
   Tensor(StorageType storage, offset_type storageOffset,
          LongRange sizes, LongRange strides = LongRange());
+#endif
 
   Tensor(StorageType storage, offset_type storageOffset,
          std::initializer_list<size_type> sizes,
@@ -68,7 +74,9 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
   // If specified, the list of strides must have the same size as the
   // list of sizes.
   explicit Tensor(LongStorage sizes, LongStorage strides = LongStorage());
+#ifndef NO_FOLLY
   explicit Tensor(LongRange sizes, LongRange strides = LongRange());
+#endif
   explicit Tensor(const std::vector<size_type>& sizes,
                   const std::vector<size_type>& strides =
                     std::vector<size_type>());
@@ -77,9 +85,11 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
       std::initializer_list<size_type> strides =
         std::initializer_list<size_type>());
 
+#if !defined(NO_THRIFT) && !defined(NO_FOLLY)
   // Deserialize from Thrift. Throws if wrong type.
   explicit Tensor(const ThriftTensor& thriftTensor,
                   SharingMode sharing = SHARE_IOBUF_MANAGED);
+#endif
 
   // Do not alias other, create separate object (with separate metadata);
   // might still share data with other, unless UNIQUE requested in
@@ -94,6 +104,7 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
   Tensor& operator=(const Tensor& other);
   /* noexcept override */ Tensor& operator=(Tensor&& other);
 
+#if !defined(NO_THRIFT) && !defined(NO_FOLLY)
   // Serialize to Thrift. Note that, if sharing is not SHARE_NONE, the
   // resulting ThriftTensor may share memory with *this, so changes in out.data
   // may be reflected in *this.
@@ -101,6 +112,7 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
                  ThriftTensorEndianness endianness =
                     ThriftTensorEndianness::NATIVE,
                  SharingMode sharing = SHARE_IOBUF_MANAGED) const;
+#endif
 
   // Copy from another tensor
   template <class U>
@@ -127,8 +139,10 @@ class Tensor : public TensorBase<T, Storage<T>, Tensor<T>> {
  private:
   Tensor(detail::SetTH, THType* t, bool incRef);
 
+#if !defined(NO_THRIFT) && !defined(NO_FOLLY)
   static THType* deserializeTH(const ThriftTensor& thriftTensor,
                                SharingMode sharing);
+#endif
 };
 
 template <class D, class S>

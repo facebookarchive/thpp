@@ -7,6 +7,10 @@
 #error This file may only be included from thpp/StorageBase.h
 #endif
 
+#ifndef UNLIKELY
+#define UNLIKELY(x) (x)
+#endif
+
 namespace thpp {
 
 template <class T, class Derived>

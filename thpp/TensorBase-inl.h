@@ -9,8 +9,12 @@
 
 #include <cmath>
 #include <type_traits>
+#ifndef NO_FOLLY
 #include <folly/Conv.h>
 #include <folly/Likely.h>
+#else
+#define UNLIKELY(x) (x)
+#endif
 
 namespace thpp {
 
@@ -50,6 +54,9 @@ void TensorBase<T, StorageT, Derived>::force(unsigned newMode) {
   *D() = Derived(std::move(*D()), newMode);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+#ifndef NO_FOLLY
+////////////////////////////////////////////////////////////////////////////////
 template <class T, class StorageT, class Derived>
 LongRange TensorBase<T, StorageT, Derived>::sizes() const {
   return LongRange(t_->size, t_->nDimension);
@@ -58,6 +65,19 @@ LongRange TensorBase<T, StorageT, Derived>::sizes() const {
 template <class T, class StorageT, class Derived>
 LongRange TensorBase<T, StorageT, Derived>::strides() const {
   return LongRange(t_->stride, t_->nDimension);
+}
+////////////////////////////////////////////////////////////////////////////////
+#endif
+////////////////////////////////////////////////////////////////////////////////
+
+template <class T, class StorageT, class Derived>
+LongStorage TensorBase<T, StorageT, Derived>::sizesTH() const {
+  return LongStorage(t_->size, t_->size + t_->nDimension);
+}
+
+template <class T, class StorageT, class Derived>
+LongStorage TensorBase<T, StorageT, Derived>::stridesTH() const {
+  return LongStorage(t_->stride, t_->stride + t_->nDimension);
 }
 
 template <class T, class StorageT, class Derived>
@@ -224,12 +244,14 @@ void TensorBase<T, StorageT, Derived>::resize(
   Ops::_resize(t_, sizes.th(), strides.th());
 }
 
+#ifndef NO_FOLLY
 template <class T, class StorageT, class Derived>
 void TensorBase<T, StorageT, Derived>::resize(
     LongRange sizes, LongRange strides) {
   resize(LongStorage::wrap(detail::makeMutable(sizes)),
          LongStorage::wrap(detail::makeMutable(strides)));
 }
+#endif
 
 template <class T, class StorageT, class Derived>
 void TensorBase<T, StorageT, Derived>::resizeAs(const TensorBase& src) {
@@ -493,9 +515,14 @@ Derived& operator/=(TensorBase<T, StorageT, Derived>& a, T b) {
 template <class T, class StorageT, class Derived>
 std::string TensorBase<T, StorageT, Derived>::str() const {
   std::string out;
-  auto sz = sizes();
+  auto sz = sizesTH();
   out.reserve(20 + 4 * sz.size());
+#ifndef NO_FOLLY
   folly::toAppend(kLuaTypeName, "(", &out);
+#else
+  out += kLuaTypeName;
+  out += "(";
+#endif
 
   bool first = true;
   for (long s : sz) {
@@ -503,7 +530,11 @@ std::string TensorBase<T, StorageT, Derived>::str() const {
       out += "x";
     }
     first = false;
+#ifndef NO_FOLLY
     folly::toAppend(s, &out);
+#else
+    out += std::to_string(s);
+#endif
   }
 
   out += ")";
