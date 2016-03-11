@@ -55,6 +55,8 @@ SET(h
   StorageBase-inl.h
   TensorBase.h
   TensorBase-inl.h
+  TensorPtr.h
+  TensorPtr-inl.h
 )
 
 SET(h_detail
