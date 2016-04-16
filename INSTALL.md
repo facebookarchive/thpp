@@ -6,7 +6,7 @@ supports C++11. We confirmed this installation procedure on Ubuntu 13.10 and
 changes.
 
 1. Install [folly](https://github.com/facebook/folly). The folly
-   [README](https://github.com/facebook/folly/blob/master/README) lists the
+   [README](https://github.com/facebook/folly/blob/master/README.md) lists the
    packages (all from the standard Ubuntu distribution) that you need installed
    on your system before compiling folly.
 2. Install [fbthrift](https://github.com/facebook/fbthrift). fbthrift depends
