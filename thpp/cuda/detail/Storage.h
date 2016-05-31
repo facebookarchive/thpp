@@ -41,6 +41,12 @@ template <> struct StorageOps<CudaStorage<float>> {
   static void _resize(THCudaStorage* storage, long size) {
     THCudaStorage_resize(getTHCState(), storage, size);
   }
+  static THCudaStorage* _newWithDataAndAllocator(
+      float* data, long size,
+      THCAllocator* allocator, void* allocatorContext) {
+    return THCudaStorage_newWithDataAndAllocator(
+        getTHCState(), data, size, allocator, allocatorContext);
+  }
 
   static constexpr const char* kLuaTypeName = "torch.CudaStorage";
 };

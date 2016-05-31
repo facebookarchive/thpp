@@ -12,11 +12,16 @@
 #define THPP_DETAIL_STORAGE_H_
 
 #include <THStorage.h>
+#ifndef NO_FOLLY
 #include <folly/Range.h>
+#endif
 
 namespace thpp {
 
+#ifndef NO_FOLLY
 using folly::Range;
+#endif
+
 template <class T> class Storage;
 
 namespace detail {

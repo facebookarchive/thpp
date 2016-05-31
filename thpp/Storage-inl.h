@@ -11,20 +11,28 @@
 #include <algorithm>
 #include <cstdlib>
 
+#ifndef NO_FOLLY
 #include <folly/Malloc.h>
 #include <folly/ScopeGuard.h>
+#include <folly/Format.h>
+#endif
 
 #ifndef THPP_STORAGE_H_
 #error This file may only be included from thpp/Storage.h
 #endif
 
-#include <folly/Format.h>
 
 namespace thpp {
 
 namespace detail {
 
+#ifndef NO_FOLLY
 void applySharingMode(folly::IOBuf& iob, SharingMode sharing);
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+#if !defined(NO_THRIFT) && !defined(NO_FOLLY)
+////////////////////////////////////////////////////////////////////////////////
 
 // Endianness of current machine.
 constexpr ThriftTensorEndianness gMachineEndianness =
@@ -83,6 +91,10 @@ folly::IOBuf deserialize(const ThriftObj& in,
   return in.data;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+#endif // !NO_THRIFT && !NO_FOLLY
+////////////////////////////////////////////////////////////////////////////////
+
 }  // namespace detail
 
 template <class T>
@@ -101,10 +113,13 @@ Storage<T>::Storage(It begin, It end) {
     this->t_ = nullptr;
     return;
   }
-  T* data = static_cast<T*>(folly::checkedMalloc(n * sizeof(T)));
-  SCOPE_FAIL { free(data); };
-  std::copy(begin, end, data);
-  this->t_ = Ops::_newWithData(data, n);
+  auto data = std::unique_ptr<T, decltype(&free)>({
+      static_cast<T*>(malloc(n * sizeof(T))),
+      free});
+  if (!data) throw std::bad_alloc();
+  std::copy(begin, end, data.get());
+  this->t_ = Ops::_newWithData(data.get(), n);
+  data.release();
 }
 
 template <class T>
@@ -113,16 +128,23 @@ Storage<T>::Storage(size_t n, T value) {
     this->t_ = nullptr;
     return;
   }
-  T* data = static_cast<T*>(folly::checkedMalloc(n * sizeof(T)));
-  SCOPE_FAIL { free(data); };
-  std::fill_n(data, n, value);
-  this->t_ = Ops::_newWithData(data, n);
+  auto data = std::unique_ptr<T, decltype(&free)>({
+      static_cast<T*>(malloc(n * sizeof(T))),
+      free});
+  if (!data) throw std::bad_alloc();
+  std::fill_n(data.get(), n, value);
+  this->t_ = Ops::_newWithData(data.get(), n);
+  data.release();
 }
 
 template <class T>
 Storage<T>::Storage(THType* t) : Base(t) {
   this->up();
 }
+
+////////////////////////////////////////////////////////////////////////////////
+#ifndef NO_FOLLY
+////////////////////////////////////////////////////////////////////////////////
 
 template <class T>
 Storage<T> Storage<T>::takeOwnership(Range<T*> data) {
@@ -144,12 +166,6 @@ Storage<T> Storage<T>::wrap(Range<T*> data) {
 }
 
 template <class T>
-Storage<T> Storage<T>::withAllocator(THAllocator* allocator,
-                                     void* allocatorContext) {
-  return wrapWithAllocator(Range<T*>(), allocator, allocatorContext);
-}
-
-template <class T>
 Storage<T> Storage<T>::wrapWithAllocator(Range<T*> data,
                                          THAllocator* allocator,
                                          void* allocatorContext) {
@@ -158,6 +174,30 @@ Storage<T> Storage<T>::wrapWithAllocator(Range<T*> data,
       data.data(), data.size(), allocator, allocatorContext);
   return s;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+#endif // !NO_FOLLY
+////////////////////////////////////////////////////////////////////////////////
+
+// Fallback without folly
+template <class T>
+Storage<T> Storage<T>::wrapWithAllocator(T* data, size_t size,
+                                         THAllocator* allocator,
+                                         void* allocatorContext) {
+  Storage<T> s;
+  s.t_ = Ops::_newWithDataAndAllocator(data, size, allocator, allocatorContext);
+  return s;
+}
+
+template <class T>
+Storage<T> Storage<T>::withAllocator(THAllocator* allocator,
+                                     void* allocatorContext) {
+  Storage<T> s;
+  s.t_ = Ops::_newWithDataAndAllocator(
+      nullptr, 0, allocator, allocatorContext);
+  return s;
+}
+
 
 template <class T>
 Storage<T>::~Storage() {
@@ -215,6 +255,10 @@ void Storage<T>::assign(size_t n, T value) {
   this->resizeUninitialized(n);
   std::fill_n(this->data(), n, value);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+#ifndef NO_FOLLY
+////////////////////////////////////////////////////////////////////////////////
 
 namespace detail {
 
@@ -304,18 +348,22 @@ folly::IOBuf Storage<T>::getIOBuf() {
 }
 
 template <class T>
-Storage<T>::Storage(folly::IOBuf&& iob, SharingMode sharing) : Base(nullptr) {
-  setFromIOBuf(std::move(iob), sharing);
+Storage<T>::Storage(folly::IOBuf&& iob, SharingMode sharing,
+                    bool resizable) : Base(nullptr) {
+  setFromIOBuf(std::move(iob), sharing, resizable);
 }
 
+#if !defined(NO_THRIFT) && !defined(NO_FOLLY)
 template <class T>
 Storage<T>::Storage(const ThriftStorage& in, SharingMode sharing)
   : Base(nullptr) {
-  setFromIOBuf(detail::deserialize(in, detail::dataType<T>()), sharing);
+  setFromIOBuf(detail::deserialize(in, detail::dataType<T>()), sharing, true);
 }
+#endif
 
 template <class T>
-void Storage<T>::setFromIOBuf(folly::IOBuf&& iob, SharingMode sharing) {
+void Storage<T>::setFromIOBuf(folly::IOBuf&& iob, SharingMode sharing,
+                              bool resizable) {
   size_t len = iob.computeChainDataLength();
   if (len % sizeof(T) != 0) {
     throw std::invalid_argument("IOBuf size must be multiple of data size");
@@ -337,8 +385,13 @@ void Storage<T>::setFromIOBuf(folly::IOBuf&& iob, SharingMode sharing) {
       p, len,
       &THAllocatorWrapper<detail::IOBufAllocator>::thAllocator,
       new detail::IOBufAllocator(std::move(iob)));
+
+  if (!resizable) {
+    Ops::_clearFlag(this->t_, TH_STORAGE_RESIZABLE);
+  }
 }
 
+#if !defined(NO_THRIFT) && !defined(NO_FOLLY)
 template <class T>
 void Storage<T>::serialize(ThriftStorage& out,
                            ThriftTensorEndianness endianness,
@@ -346,6 +399,11 @@ void Storage<T>::serialize(ThriftStorage& out,
   detail::serialize(out, const_cast<Storage*>(this)->getIOBuf(),
                     detail::dataType<T>(), endianness, sharing);
 }
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+#endif // !NO_FOLLY
+////////////////////////////////////////////////////////////////////////////////
 
 template <class T>
 bool Storage<T>::isUnique(const THType* th) {
@@ -361,6 +419,7 @@ bool Storage<T>::isUnique(const THType* th) {
     return true;
   }
 
+#ifndef NO_FOLLY
   // Check all our supported allocators. Currently one.
   auto iobTHAllocator =
     &THAllocatorWrapper<detail::IOBufAllocator>::thAllocator;
@@ -368,6 +427,7 @@ bool Storage<T>::isUnique(const THType* th) {
     return static_cast<const detail::IOBufAllocator*>(th->allocatorContext)->
       isUnique(th->data);
   }
+#endif
 
   // Unknown allocator. Be on the safe side.
   return false;

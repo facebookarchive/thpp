@@ -16,8 +16,9 @@
 
 #pragma once
 
-#include <boost/operators.hpp>
+#ifndef NO_FOLLY
 #include <folly/Optional.h>
+#endif
 
 namespace thpp {
 
@@ -40,7 +41,7 @@ struct SetTH {};
  * that TensorPtr uses Torch's TH*Tensor internal reference counting mechanism.
  */
 template <class Tensor>
-class TensorPtr : private boost::equality_comparable<TensorPtr<Tensor>> {
+class TensorPtr {
   template <class T, class... Args>
   friend TensorPtr<T> makeTensorPtr(Args&&... args);
 
@@ -103,6 +104,19 @@ class TensorPtr : private boost::equality_comparable<TensorPtr<Tensor>> {
   union {
     mutable Tensor tensor_;
   };
+
+  template<class U>
+  friend bool operator==(const U& y, const TensorPtr& x) {
+    return x == y;
+  }
+  template<class U>
+  friend bool operator!=(const U& y, const TensorPtr& x) {
+    return !static_cast<bool>(x == y);
+  }
+  template<class U>
+  friend bool operator!=(const TensorPtr& y, const U& x) {
+    return !static_cast<bool>(y == x);
+  }
 };
 
 template <class Tensor, class... Args>

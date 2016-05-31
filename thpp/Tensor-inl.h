@@ -14,6 +14,9 @@
 
 namespace thpp {
 
+////////////////////////////////////////////////////////////////////////////////
+#if !defined(NO_THRIFT) && !defined(NO_FOLLY)
+////////////////////////////////////////////////////////////////////////////////
 namespace detail {
 
 void serialize(
@@ -30,6 +33,9 @@ template <class ThriftObj>
 folly::IOBuf deserialize(const ThriftObj& in,
                          ThriftTensorDataType dtype);
 }  // namespace detail
+////////////////////////////////////////////////////////////////////////////////
+#endif // !NO_THRIFT && !NO_FOLLY
+////////////////////////////////////////////////////////////////////////////////
 
 template <class T>
 Tensor<T>::Tensor() : Base(Ops::_new()) { }
@@ -41,12 +47,14 @@ Tensor<T>::Tensor(StorageType storage, offset_type storageOffset,
                    strides.th());
 }
 
+#ifndef NO_FOLLY
 template <class T>
 Tensor<T>::Tensor(StorageType storage, offset_type storageOffset,
                   LongRange sizes, LongRange strides)
   : Tensor(std::move(storage), storageOffset,
            LongStorage::wrap(detail::makeMutable(sizes)),
            LongStorage::wrap(detail::makeMutable(strides))) { }
+#endif
 
 template <class T>
 Tensor<T>::Tensor(StorageType storage, offset_type storageOffset,
@@ -62,10 +70,12 @@ Tensor<T>::Tensor(LongStorage sizes, LongStorage strides) : Tensor() {
   Ops::_setStorage(this->t_, nullptr, 0, sizes.th(), strides.th());
 }
 
+#ifndef NO_FOLLY
 template <class T>
 Tensor<T>::Tensor(LongRange sizes, LongRange strides)
   : Tensor(LongStorage::wrap(detail::makeMutable(sizes)),
            LongStorage::wrap(detail::makeMutable(strides))) { }
+#endif
 
 template <class T>
 Tensor<T>::Tensor(std::initializer_list<size_type> sizes,
@@ -79,6 +89,9 @@ Tensor<T>::Tensor(const std::vector<size_type>& sizes,
     : Tensor(LongStorage(sizes.begin(), sizes.end()),
              LongStorage(strides.begin(), strides.end())) { }
 
+////////////////////////////////////////////////////////////////////////////////
+#if !defined(NO_THRIFT) && !defined(NO_FOLLY)
+////////////////////////////////////////////////////////////////////////////////
 template <class T>
 auto Tensor<T>::deserializeTH(const ThriftTensor& thriftTensor,
                               SharingMode sharing) -> THType* {
@@ -97,6 +110,9 @@ Tensor<T>::Tensor(const ThriftTensor& thriftTensor,
   : Base(deserializeTH(thriftTensor, sharing)) {
   DCHECK_EQ(this->storage().size(), this->size());
 }
+////////////////////////////////////////////////////////////////////////////////
+#endif // !NO_THRIFT && !NO_FOLLY
+////////////////////////////////////////////////////////////////////////////////
 
 template <class T>
 Tensor<T>::Tensor(detail::SetTH, THType* t, bool incRef)
@@ -144,6 +160,7 @@ void Tensor<T>::copy(const Tensor<U>& src) {
   Ops::_copyT(this->t_, src.mut());
 }
 
+#if !defined(NO_THRIFT) && !defined(NO_FOLLY)
 template <class T>
 void Tensor<T>::serialize(ThriftTensor& out,
                           ThriftTensorEndianness endianness,
@@ -160,6 +177,7 @@ void Tensor<T>::serialize(ThriftTensor& out,
       endianness,
       sharing);
 }
+#endif
 
 
 // These must be defined here, as LongTensor and ByteTensor must be

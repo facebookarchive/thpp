@@ -9,7 +9,9 @@
 #include <cstddef>
 #include <stdexcept>
 #include <utility>
+#ifndef NO_FOLLY
 #include <folly/Likely.h>
+#endif
 
 namespace thpp {
 

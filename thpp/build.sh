@@ -9,6 +9,12 @@
 #
 #
 set -o pipefail
+echo "If you don't have folly or thrift installed, try doing"
+echo "  THPP_NOFB=1 ./build.sh"
+
+if [ ! -z "$THPP_NOFB" ]; then
+  FB="-DNO_THRIFT=ON -DNO_FOLLY=ON"
+fi
 
 if [[ ! -r ./Tensor.h ]]; then
   echo "Please run from the thpp subdirectory." >&2
@@ -31,7 +37,7 @@ cd build
 export CMAKE_LIBRARY_PATH=$(dirname $(which th))/../lib
 
 # Configure
-cmake ..
+cmake $FB ..
 
 # Make
 make
