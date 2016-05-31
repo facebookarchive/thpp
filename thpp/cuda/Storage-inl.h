@@ -87,8 +87,16 @@ CudaStorage<T>& CudaStorage<T>::operator=(const CudaStorage& other) {
 
 template <class T>
 CudaStorage<T>::CudaStorage(const ThriftStorage& thriftStorage,
-                            bool mayShare)
-  : CudaStorage(Storage<T>(thriftStorage, true)) {
+                            SharingMode sharing)
+  : CudaStorage(Storage<T>(thriftStorage, SHARE_ALL)) {
+}
+
+template <class T>
+CudaStorage<T>::CudaStorage(folly::IOBuf&& iob,
+                            SharingMode sharing,
+                            bool resizable)
+  : Base(nullptr) {
+  setFromIOBuf(std::move(iob), sharing, resizable);
 }
 
 namespace detail {
@@ -114,5 +122,77 @@ Storage<T> CudaStorage<T>::toCPU() const {
   }
   return cpuStorage;
 }
+
+namespace detail {
+
+class CudaIOBufAllocator {
+ public:
+  explicit CudaIOBufAllocator(folly::IOBuf&& iob);
+
+  cudaError_t malloc(THCState* state, void** ptr, long size);
+  cudaError_t realloc(THCState* state, void** ptr,
+                      long oldSize, long newSize);
+  cudaError_t free(THCState* state, void* ptr);
+
+ private:
+  folly::IOBuf iob_;
+};
+
+}  // namespace detail
+
+template <class T>
+void CudaStorage<T>::setFromIOBuf(folly::IOBuf&& iob, SharingMode sharing,
+                                  bool resizable) {
+  if (iob.isChained()) {
+    throw std::invalid_argument("IOBuf may not be chained");
+  }
+  size_t len = iob.length();
+  if (len % sizeof(T) != 0) {
+    throw std::invalid_argument("IOBuf size must be multiple of data size");
+  }
+  len /= sizeof(T);
+
+  switch (sharing) {
+  case SHARE_NONE:
+    throw std::invalid_argument("SHARE_NONE not supported");
+  case SHARE_IOBUF_MANAGED:
+    if (!iob.isManagedOne()) {
+      throw std::invalid_argument("SHARE_IOBUF_MANAGED requires managed IOBuf");
+    }
+    break;
+  case SHARE_ALL:
+    break;
+  }
+
+  if (resizable) {
+    throw std::invalid_argument("NYI: Resizable IOBuf CUDA storage");
+  }
+
+  // Ensure properly aligned
+  if ((reinterpret_cast<uintptr_t>(iob.data()) % alignof(T)) != 0) {
+    throw std::invalid_argument("IOBuf is not properly aligned");
+  }
+
+  T* p = reinterpret_cast<T*>(iob.writableData());
+
+  cudaPointerAttributes attr;
+  cuda::check(cudaPointerGetAttributes(&attr, p));
+  if (attr.memoryType != cudaMemoryTypeDevice) {
+    throw std::invalid_argument("IOBuf does not point to CUDA memory");
+  }
+
+  this->t_ = Ops::_newWithDataAndAllocator(
+      p, len,
+      &THCAllocatorWrapper<detail::CudaIOBufAllocator>::thcAllocator,
+      new detail::CudaIOBufAllocator(std::move(iob)));
+  Ops::_clearFlag(this->t_, TH_STORAGE_RESIZABLE);
+}
+
+template <class A>
+THCAllocator THCAllocatorWrapper<A>::thcAllocator = {
+  &THCAllocatorWrapper<A>::malloc,
+  &THCAllocatorWrapper<A>::realloc,
+  &THCAllocatorWrapper<A>::free,
+};
 
 }  // namespaces

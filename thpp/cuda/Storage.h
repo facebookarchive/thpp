@@ -30,7 +30,17 @@ class CudaStorage : public StorageBase<T, CudaStorage<T>> {
 
   // Deserialize from Thrift. Throws if wrong type.
   explicit CudaStorage(const ThriftStorage& thriftStorage,
-                       bool mayShare = true);
+                       SharingMode sharing = SHARE_IOBUF_MANAGED);
+
+  // Note that, despite being default (for consistency with the Storage
+  // constructors), resizable == true is not yet implemented.
+  explicit CudaStorage(folly::IOBuf&& iob,
+                       SharingMode sharing = SHARE_IOBUF_MANAGED,
+                       bool resizable = true);
+  explicit CudaStorage(const folly::IOBuf& iob,
+                       SharingMode sharing = SHARE_IOBUF_MANAGED,
+                       bool resizable = true)
+    : CudaStorage(folly::IOBuf(iob), sharing, resizable) { }
 
   ~CudaStorage();
 
@@ -58,8 +68,31 @@ class CudaStorage : public StorageBase<T, CudaStorage<T>> {
     return !th || th->refcount == 1;
   }
 
+  void setFromIOBuf(folly::IOBuf&& iob, SharingMode sharing, bool resizable);
+
  private:
   template <class U> friend class CudaTensor;
+};
+
+/**
+ * Wrap a THCAllocator-like object with a C++ interface into THCAllocator.
+ */
+template <class A>
+class THCAllocatorWrapper {
+ public:
+  static THCAllocator thcAllocator;
+ private:
+  static cudaError_t malloc(THCState* state, void* ctx, void** ptr,
+                            long size) {
+    return static_cast<A*>(ctx)->malloc(state, ptr, size);
+  }
+  static cudaError_t realloc(THCState* state, void* ctx, void** ptr,
+                             long oldSize, long newSize) {
+    return static_cast<A*>(ctx)->realloc(state, ptr, oldSize, newSize);
+  }
+  static cudaError_t free(THCState* state, void* ctx, void* ptr) {
+    return static_cast<A*>(ctx)->free(state, ptr);
+  }
 };
 
 }  // namespaces

@@ -9,7 +9,9 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#ifndef NO_FOLLY
 #include <folly/Range.h>
+#endif
 #include <thpp/Storage.h>
 #include <thpp/TensorPtr.h>
 
@@ -103,20 +105,33 @@ class TensorBase {
   // Return number of elements.
   size_type size() const;
 
+  // Return number of dimensions.
+  int ndims() const { return t_->nDimension; }
+
+#ifndef NO_FOLLY
   // Return list of sizes.
   LongRange sizes() const;
 
   // Return list of strides.
   LongRange strides() const;
+#endif
 
-  // Return number of dimensions.
-  int ndims() const { return t_->nDimension; }
+  // Return a storage of sizes.
+  LongStorage sizesTH() const;
 
+  // Return a storage of strides.
+  LongStorage stridesTH() const;
+
+#ifndef NO_FOLLY
   // Return size along dimension dim.
   size_type size(int dim) const { return sizes().at(dim); }
 
   // Return stride along dimension dim.
   size_type stride(int dim) const { return strides().at(dim); }
+#else
+  size_type size(int dim) const { return sizesTH()[dim]; }
+  size_type stride(int dim) const { return stridesTH()[dim]; }
+#endif
 
   // Narrow the tensor along a given dimension; the dimension dim is narrowed
   // to [firstIndex, firstIndex + size)
@@ -161,7 +176,9 @@ class TensorBase {
       std::initializer_list<size_type> newStrides =
         std::initializer_list<size_type>());
   void resize(LongStorage newSizes, LongStorage newStrides = LongStorage());
+#ifndef NO_FOLLY
   void resize(LongRange newSizes, LongRange newStrides = LongRange());
+#endif
   void resizeAs(const TensorBase& src);
 
   StorageType storage();
@@ -335,12 +352,14 @@ class TensorBase {
 
   std::string str() const;
 
+#if !defined(NO_THRIFT) && !defined(NO_FOLLY)
   // const version of serialize() that won't share, but will always copy
   void serializeUnshared(ThriftTensor& out,
                          ThriftTensorEndianness endianness =
                             ThriftTensorEndianness::NATIVE) const {
     const_cast<TensorBase*>(this)->D()->serialize(out, endianness, false);
   }
+#endif
 
  protected:
   size_t offsetOf(std::initializer_list<offset_type> indices) const;
@@ -404,12 +423,14 @@ std::ostream& operator<<(std::ostream& s,
   return s << t.str();
 }
 
+#ifndef NO_FOLLY
 namespace detail {
 template <class T>
 Range<T*> makeMutable(Range<const T*> r) {
   return Range<T*>(const_cast<T*>(r.begin()), const_cast<T*>(r.end()));
 }
 }  // namespace detail
+#endif
 
 // Define IsTensor<T> to be used in template specializations
 
