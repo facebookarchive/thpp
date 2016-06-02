@@ -23,7 +23,13 @@ fi
 
 rm -rf gtest-1.7.0 gtest-1.7.0.zip
 curl -JLOk https://googletest.googlecode.com/files/gtest-1.7.0.zip
-if [[ $(sha1sum -b gtest-1.7.0.zip | cut -d' ' -f1) != \
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+        SHA="sha1sum"
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+        SHA="shasum"
+fi
+
+if [[ $($SHA -b gtest-1.7.0.zip | cut -d' ' -f1) != \
       'f85f6d2481e2c6c4a18539e391aa4ea8ab0394af' ]]; then
   echo "Invalid gtest-1.7.0.zip file" >&2
   exit 1
