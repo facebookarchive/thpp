@@ -95,6 +95,8 @@ folly::IOBuf deserialize(const ThriftObj& in,
 #endif // !NO_THRIFT && !NO_FOLLY
 ////////////////////////////////////////////////////////////////////////////////
 
+extern THAllocator ioBufTHAllocator;
+
 }  // namespace detail
 
 template <class T>
@@ -303,7 +305,7 @@ folly::IOBuf Storage<T>::getIOBuf() {
   if (!this->t_) return folly::IOBuf();
 
   auto iobTHAllocator =
-    &THAllocatorWrapper<detail::IOBufAllocator>::thAllocator;
+    &detail::ioBufTHAllocator;
 
   if (this->t_->allocator == &THDefaultAllocator) {
     // Switch to using IOBuf allocator.
@@ -383,7 +385,7 @@ void Storage<T>::setFromIOBuf(folly::IOBuf&& iob, SharingMode sharing,
   T* p = reinterpret_cast<T*>(iob.writableData());
   this->t_ = Ops::_newWithDataAndAllocator(
       p, len,
-      &THAllocatorWrapper<detail::IOBufAllocator>::thAllocator,
+      &detail::ioBufTHAllocator,
       new detail::IOBufAllocator(std::move(iob)));
 
   if (!resizable) {
@@ -421,8 +423,7 @@ bool Storage<T>::isUnique(const THType* th) {
 
 #ifndef NO_FOLLY
   // Check all our supported allocators. Currently one.
-  auto iobTHAllocator =
-    &THAllocatorWrapper<detail::IOBufAllocator>::thAllocator;
+  auto iobTHAllocator = &detail::ioBufTHAllocator;
   if (th->allocator == iobTHAllocator) {
     return static_cast<const detail::IOBufAllocator*>(th->allocatorContext)->
       isUnique(th->data);
@@ -432,12 +433,5 @@ bool Storage<T>::isUnique(const THType* th) {
   // Unknown allocator. Be on the safe side.
   return false;
 }
-
-template <class A>
-THAllocator THAllocatorWrapper<A>::thAllocator = {
-  &THAllocatorWrapper<A>::malloc,
-  &THAllocatorWrapper<A>::realloc,
-  &THAllocatorWrapper<A>::free,
-};
 
 }  // namespaces

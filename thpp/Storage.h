@@ -197,8 +197,6 @@ class Storage : public StorageBase<T, Storage<T>> {
 template <class A>
 class THAllocatorWrapper {
  public:
-  static THAllocator thAllocator;
- private:
   static void* malloc(void* ctx, long size) {
     return static_cast<A*>(ctx)->malloc(size);
   }

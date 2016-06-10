@@ -74,6 +74,12 @@ void applySharingMode(folly::IOBuf& iob, SharingMode sharing) {
   }
 }
 
+THAllocator ioBufTHAllocator = {
+  &THAllocatorWrapper<detail::IOBufAllocator>::malloc,
+  &THAllocatorWrapper<detail::IOBufAllocator>::realloc,
+  &THAllocatorWrapper<detail::IOBufAllocator>::free,
+};
+
 }  // namespace detail
 
 }  // namespaces
