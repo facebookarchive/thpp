@@ -127,7 +127,7 @@ template <> struct TensorOps<CudaTensor<float>> {
                           float value) {
     THCudaTensor_maskedFillByte(getTHCState(), tensor, mask, value);
   }
-  static void _maskedFill(THCudaTensor* tensor, THCudaTensor* mask,
+  static void _maskedFill(THCudaTensor* tensor, THCudaByteTensor* mask,
                           float value) {
     THCudaTensor_maskedFill(getTHCState(), tensor, mask, value);
   }
@@ -135,7 +135,7 @@ template <> struct TensorOps<CudaTensor<float>> {
                           THCudaTensor* src) {
     THCudaTensor_maskedCopyByte(getTHCState(), tensor, mask, src);
   }
-  static void _maskedCopy(THCudaTensor* tensor, THCudaTensor* mask,
+  static void _maskedCopy(THCudaTensor* tensor, THCudaByteTensor* mask,
                           THCudaTensor* src) {
     THCudaTensor_maskedCopy(getTHCState(), tensor, mask, src);
   }
@@ -144,7 +144,7 @@ template <> struct TensorOps<CudaTensor<float>> {
     THCudaTensor_maskedSelectByte(getTHCState(), tensor, src, mask);
   }
   static void _maskedSelect(THCudaTensor* tensor, THCudaTensor* src,
-                            THCudaTensor* mask) {
+                            THCudaByteTensor* mask) {
     THCudaTensor_maskedSelect(getTHCState(), tensor, src, mask);
   }
   static void _indexSelect(THCudaTensor* tensor, THCudaTensor* src, int dim,
@@ -213,11 +213,11 @@ template <> struct TensorOps<CudaTensor<float>> {
                     THCudaTensor* vec1, THCudaTensor* vec2) {
     return THCudaTensor_addr(getTHCState(), r, beta, t, alpha, vec1, vec2);
   }
-  static void _max(THCudaTensor* values, THCudaTensor* indices,
+  static void _max(THCudaTensor* values, THCudaLongTensor* indices,
                    THCudaTensor* t, int dim) {
     return THCudaTensor_max(getTHCState(), values, indices, t, dim);
   }
-  static void _min(THCudaTensor* values, THCudaTensor* indices,
+  static void _min(THCudaTensor* values, THCudaLongTensor* indices,
                    THCudaTensor* t, int dim) {
     return THCudaTensor_min(getTHCState(), values, indices, t, dim);
   }
