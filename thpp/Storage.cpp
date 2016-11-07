@@ -74,9 +74,24 @@ void applySharingMode(folly::IOBuf& iob, SharingMode sharing) {
   }
 }
 
+THAllocFreeFuncData::THAllocFreeFuncData(THAllocator* allocator, void* context):
+  allocator(allocator), context(context) {}
+
+void THAllocFreeFunc(void* buf, void* userData) {
+  auto thData = (THAllocFreeFuncData*) userData;
+  thData->allocator->free(thData->context, buf);
+  delete thData;
+}
+
 THAllocator ioBufTHAllocator = {
   &THAllocatorWrapper<detail::IOBufAllocator>::malloc,
   &THAllocatorWrapper<detail::IOBufAllocator>::realloc,
+  &THAllocatorWrapper<detail::IOBufAllocator>::free,
+};
+
+THAllocator ioBufTHAllocatorNoRealloc = {
+  &THAllocatorWrapper<detail::IOBufAllocator>::malloc,
+  nullptr,
   &THAllocatorWrapper<detail::IOBufAllocator>::free,
 };
 

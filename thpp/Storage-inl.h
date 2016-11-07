@@ -96,6 +96,7 @@ folly::IOBuf deserialize(const ThriftObj& in,
 ////////////////////////////////////////////////////////////////////////////////
 
 extern THAllocator ioBufTHAllocator;
+extern THAllocator ioBufTHAllocatorNoRealloc;
 
 }  // namespace detail
 
@@ -298,6 +299,15 @@ class IOBufAllocator {
   uint64_t maxLength_;
 };
 
+struct THAllocFreeFuncData {
+  THAllocator* allocator;
+  void* context;
+
+  THAllocFreeFuncData(THAllocator* allocator, void* context);
+};
+
+void THAllocFreeFunc(void* buf, void* userData);
+
 }  // namespace detail
 
 template <class T>
@@ -306,43 +316,35 @@ folly::IOBuf Storage<T>::getIOBuf() {
 
   auto iobTHAllocator =
     &detail::ioBufTHAllocator;
+  auto iobTHAllocatorNoRealloc =
+    &detail::ioBufTHAllocatorNoRealloc;
 
-  if (this->t_->allocator == &THDefaultAllocator) {
+  auto len = this->size() * sizeof(T);
+  auto curAllocator = this->t_->allocator;
+  if (curAllocator == &THDefaultAllocator) {
     // Switch to using IOBuf allocator.
     // We know that memory from the default allocator was allocated with
     // malloc, just like IOBuf, so we know how to free it.
     this->t_->allocator = iobTHAllocator;
     this->t_->allocatorContext = new detail::IOBufAllocator(folly::IOBuf(
-            folly::IOBuf::TAKE_OWNERSHIP,
-            this->data(), this->size() * sizeof(T), this->size() * sizeof(T)));
-  } else if (this->t_->allocator != iobTHAllocator) {
-    throw std::invalid_argument(
-        "Cannot convert to IOBuf, Storage was allocated with unknown "
-        "allocator");
+            folly::IOBuf::TAKE_OWNERSHIP, this->data(), len, len));
+  } else if (curAllocator == iobTHAllocator ||
+             curAllocator == iobTHAllocatorNoRealloc) {
+    // do nothing
+  } else {
+    // The storage was allocated with an unknown allocator (neither default
+    // nor IOBuf), so we must remember the previous allocator and allocator
+    // context and call that allocator's free method when necessary.
+
+    auto freeFuncData = new detail::THAllocFreeFuncData(
+      this->t_->allocator, this->t_->allocatorContext);
+
+    this->t_->allocator = iobTHAllocatorNoRealloc;
+    this->t_->allocatorContext = new detail::IOBufAllocator(folly::IOBuf(
+            folly::IOBuf::TAKE_OWNERSHIP, this->data(), len, len,
+            detail::THAllocFreeFunc, freeFuncData));
   }
 
-  // If the storage was allocated with an unknown allocator (neither default
-  // nor IOBuf), there are three obvious solutions, all wrong:
-  //
-  // 1. We could memcpy() into our own IOBuf and proceed as above. This
-  //    doesn't work because the memory might be allocated in an unusual
-  //    way (different address space (CUDA), mlock()ed, unusual alignment
-  //    requirements) and we don't know how to replicate that with IOBuf.
-  //
-  // 2. We could remember the previous allocator and allocator context and
-  //    call that allocator's free method when necessary. This doesn't work
-  //    because TH doesn't manage lifetimes of allocators and allocator
-  //    contexts, so we can't know when a previous allocator and context
-  //    are still valid (not deleted).
-  //
-  // 3. Just as in 2 above, we could remember the previous allocator and
-  //    allocator context, but we'll also keep a reference to the Storage
-  //    object, to prevent the allocator from being deleted. This means that
-  //    the IOBuf has a reference to the Storage (via the free function
-  //    that would ensure that the previous allocator's free method gets
-  //    called) and the Storage has a reference to the IOBuf's memory
-  //    (via IOBufAllocator), so the reference count for either never drops
-  //    to 0, so we have a memory leak.
 
   auto allocator = static_cast<detail::IOBufAllocator*>(
       this->t_->allocatorContext);
