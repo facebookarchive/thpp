@@ -23,6 +23,7 @@ class THCStateHolder {
 };
 
 THCStateHolder::THCStateHolder() {
+  memset(&state_, 0, sizeof(THCState));
   THCudaInit(&state_);
   // TODO(tudorb): There must be a better way of doing this. We need to check
   // that we're not unloading the driver (running during process exit); we

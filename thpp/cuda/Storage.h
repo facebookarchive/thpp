@@ -80,18 +80,19 @@ class CudaStorage : public StorageBase<T, CudaStorage<T>> {
 template <class A>
 class THCAllocatorWrapper {
  public:
-  static THCAllocator thcAllocator;
+  static THCDeviceAllocator thcAllocator;
  private:
-  static cudaError_t malloc(THCState* state, void* ctx, void** ptr,
-                            long size) {
-    return static_cast<A*>(ctx)->malloc(state, ptr, size);
+  static cudaError_t malloc(void* ctx, void** ptr,
+                            size_t size, cudaStream_t stream) {
+    return static_cast<A*>(ctx)->malloc(ctx, ptr, size, stream);
   }
-  static cudaError_t realloc(THCState* state, void* ctx, void** ptr,
-                             long oldSize, long newSize) {
-    return static_cast<A*>(ctx)->realloc(state, ptr, oldSize, newSize);
+  static cudaError_t realloc(void* ctx, void** ptr,
+                             size_t oldSize, size_t newSize,
+                             cudaStream_t stream) {
+    return static_cast<A*>(ctx)->realloc(ctx, ptr, oldSize, newSize, stream);
   }
-  static cudaError_t free(THCState* state, void* ctx, void* ptr) {
-    return static_cast<A*>(ctx)->free(state, ptr);
+  static cudaError_t free(void* ctx, void* ptr) {
+    return static_cast<A*>(ctx)->free(ctx, ptr);
   }
 };
 

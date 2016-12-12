@@ -24,18 +24,18 @@ CudaIOBufAllocator::CudaIOBufAllocator(folly::IOBuf&& iob)
   : iob_(std::move(iob)) { }
 
 cudaError_t CudaIOBufAllocator::malloc(
-    THCState* state, void** ptr, long size) {
+  void* ctx, void** ptr, size_t size, cudaStream_t stream) {
   LOG(FATAL) << "CudaIOBufAllocator::malloc should never be called";
   return cudaSuccess;  // not reached
 }
 
 cudaError_t CudaIOBufAllocator::realloc(
-    THCState* state, void** ptr, long oldSize, long newSize) {
+  void* ctx, void** ptr, size_t oldSize, size_t newSize, cudaStream_t stream) {
   LOG(FATAL) << "CudaIOBufAllocator::realloc should never be called";
   return cudaSuccess;  // not reached
 }
 
-cudaError_t CudaIOBufAllocator::free(THCState* stat, void* ptr) {
+cudaError_t CudaIOBufAllocator::free(void* stat, void* ptr) {
   CHECK_EQ(ptr, iob_.writableData());
   delete this;
   return cudaSuccess;

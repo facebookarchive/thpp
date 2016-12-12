@@ -43,7 +43,7 @@ template <> struct StorageOps<CudaStorage<float>> {
   }
   static THCudaStorage* _newWithDataAndAllocator(
       float* data, long size,
-      THCAllocator* allocator, void* allocatorContext) {
+      THCDeviceAllocator* allocator, void* allocatorContext) {
     return THCudaStorage_newWithDataAndAllocator(
         getTHCState(), data, size, allocator, allocatorContext);
   }

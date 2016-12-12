@@ -129,10 +129,10 @@ class CudaIOBufAllocator {
  public:
   explicit CudaIOBufAllocator(folly::IOBuf&& iob);
 
-  cudaError_t malloc(THCState* state, void** ptr, long size);
-  cudaError_t realloc(THCState* state, void** ptr,
-                      long oldSize, long newSize);
-  cudaError_t free(THCState* state, void* ptr);
+  cudaError_t malloc(void* ctx, void** ptr, size_t size, cudaStream_t);
+  cudaError_t realloc(void* ctx, void** ptr,
+                      size_t oldSize, size_t newSize, cudaStream_t);
+  cudaError_t free(void* ctx, void* ptr);
 
  private:
   folly::IOBuf iob_;
@@ -189,10 +189,12 @@ void CudaStorage<T>::setFromIOBuf(folly::IOBuf&& iob, SharingMode sharing,
 }
 
 template <class A>
-THCAllocator THCAllocatorWrapper<A>::thcAllocator = {
+THCDeviceAllocator THCAllocatorWrapper<A>::thcAllocator = {
   &THCAllocatorWrapper<A>::malloc,
   &THCAllocatorWrapper<A>::realloc,
   &THCAllocatorWrapper<A>::free,
+  NULL,
+  NULL,
 };
 
 }  // namespaces
