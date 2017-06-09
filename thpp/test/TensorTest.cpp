@@ -20,7 +20,7 @@ namespace test {
 
 class TensorTest : public testing::Test {
  protected:
-  void SetUp();
+  void SetUp() override;
 
   static LongTensor create(long bias);
 

@@ -13,7 +13,7 @@ namespace thpp { namespace test {
 
 class TensorTest : public testing::Test {
  protected:
-  void SetUp();
+  void SetUp() override;
 
   static CudaFloatTensor create(long bias);
 
