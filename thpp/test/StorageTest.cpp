@@ -41,7 +41,7 @@ void* test_malloc(void* ctx, long size) {
   return malloc(4*size);
 }
 void* test_realloc(void* ctx, void* ptr, long size) {
-  EXPECT_TRUE(false) << "realloc should not be called";
+  ADD_FAILURE() << "realloc should not be called";
   return nullptr;
 }
 void test_free(void* ctx, void* ptr) {
