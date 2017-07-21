@@ -53,9 +53,10 @@ CudaTensor<T>::CudaTensor(const Tensor<T>& cpuTensor)
 
 // The CPU tensor is temporary, it may always share memory with Thrift
 template <class T>
-CudaTensor<T>::CudaTensor(const ThriftTensor& thriftTensor, SharingMode sharing)
-  : CudaTensor(Tensor<T>(thriftTensor, SHARE_ALL)) {
-}
+CudaTensor<T>::CudaTensor(
+    const ThriftTensor& thriftTensor,
+    SharingMode /*sharing*/)
+    : CudaTensor(Tensor<T>(thriftTensor, SHARE_ALL)) {}
 
 template <class T>
 CudaTensor<T>::CudaTensor(detail::SetTH, THType* t, bool incRef)
@@ -171,9 +172,10 @@ void cudaTensorSerialize(
 }  // namespace detail
 
 template <class T>
-void CudaTensor<T>::serialize(ThriftTensor& out,
-                              ThriftTensorEndianness endianness,
-                              SharingMode sharing) const {
+void CudaTensor<T>::serialize(
+    ThriftTensor& out,
+    ThriftTensorEndianness endianness,
+    SharingMode /*sharing*/) const {
   toCPU()->serialize(out, endianness, SHARE_ALL);
 }
 

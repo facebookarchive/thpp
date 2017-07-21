@@ -40,11 +40,11 @@ void* test_malloc(void* ctx, long size) {
   myCtx->nMalloc++;
   return malloc(4*size);
 }
-void* test_realloc(void* ctx, void* ptr, long size) {
+void* test_realloc(void* /*ctx*/, void* /*ptr*/, long /*size*/) {
   ADD_FAILURE() << "realloc should not be called";
   return nullptr;
 }
-void test_free(void* ctx, void* ptr) {
+void test_free(void* ctx, void* /*ptr*/) {
   auto myCtx = (TestContext*) ctx;
   myCtx->nFree++;
 }

@@ -86,10 +86,10 @@ CudaStorage<T>& CudaStorage<T>::operator=(const CudaStorage& other) {
 }
 
 template <class T>
-CudaStorage<T>::CudaStorage(const ThriftStorage& thriftStorage,
-                            SharingMode sharing)
-  : CudaStorage(Storage<T>(thriftStorage, SHARE_ALL)) {
-}
+CudaStorage<T>::CudaStorage(
+    const ThriftStorage& thriftStorage,
+    SharingMode /*sharing*/)
+    : CudaStorage(Storage<T>(thriftStorage, SHARE_ALL)) {}
 
 template <class T>
 CudaStorage<T>::CudaStorage(folly::IOBuf&& iob,
@@ -107,9 +107,10 @@ void cudaStorageSerialize(ThriftStorage& out,
 }  // namespace detail
 
 template <class T>
-void CudaStorage<T>::serialize(ThriftStorage& out,
-                               ThriftTensorEndianness endianness,
-                               bool mayShare) const {
+void CudaStorage<T>::serialize(
+    ThriftStorage& out,
+    ThriftTensorEndianness endianness,
+    bool /*mayShare*/) const {
   toCPU().serialize(out, endianness, true);
 }
 

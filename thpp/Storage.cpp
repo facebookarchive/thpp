@@ -24,7 +24,7 @@ IOBufAllocator::IOBufAllocator(folly::IOBuf&& iob)
   DCHECK(!iob_.isChained());
 }
 
-void* IOBufAllocator::malloc(long size) {
+void* IOBufAllocator::malloc(long /*size*/) {
   CHECK(false) << "IOBufAllocator::malloc should never be called";
 }
 

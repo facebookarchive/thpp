@@ -21,7 +21,7 @@ namespace thpp {
 
 namespace {
 
-void freeCudaIOBuf(void* ptr, void* userData) {
+void freeCudaIOBuf(void* ptr, void* /*userData*/) {
   cuda::check(cudaFree(ptr));
 }
 
