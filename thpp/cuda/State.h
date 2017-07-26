@@ -43,9 +43,9 @@ inline THCState* getTHCState() {
 namespace cuda {
 
 inline void check(cudaError_t err) {
-  folly::throwOnFail<std::runtime_error>(
-      err == cudaSuccess,
-      folly::to<std::string>("CUDA error ", err));
+  if (err != cudaSuccess) {
+    throw std::runtime_error(folly::to<std::string>("CUDA error ", err));
+  }
 }
 
 inline int getDevice() {
