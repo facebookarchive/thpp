@@ -11,6 +11,7 @@
 #include <thpp/Tensor.h>
 #ifndef NO_FOLLY
 #include <folly/Format.h>
+#include <folly/io/Cursor.h>
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
