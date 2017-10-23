@@ -22,7 +22,7 @@
 #include <thpp/if/gen-cpp2/Tensor_types.h>
 #endif
 #ifndef NO_FOLLY
-#include <folly/Malloc.h>
+#include <folly/memory/Malloc.h>
 #include <folly/Range.h>
 #include <folly/io/IOBuf.h>
 #endif

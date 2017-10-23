@@ -8,7 +8,7 @@
 
 #include <thpp/Storage.h>
 #include <thpp/cuda/detail/Storage.h>
-#include <folly/Malloc.h>
+#include <folly/memory/Malloc.h>
 #include <folly/Range.h>
 
 namespace thpp {

@@ -12,7 +12,7 @@
 #include <cstdlib>
 
 #ifndef NO_FOLLY
-#include <folly/Malloc.h>
+#include <folly/memory/Malloc.h>
 #include <folly/ScopeGuard.h>
 #include <folly/Format.h>
 #endif
