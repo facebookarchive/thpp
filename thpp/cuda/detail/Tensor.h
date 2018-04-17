@@ -215,17 +215,19 @@ template <> struct TensorOps<CudaTensor<float>> {
   }
   static void _max(THCudaTensor* values, THCudaLongTensor* indices,
                    THCudaTensor* t, int dim) {
-    return THCudaTensor_max(getTHCState(), values, indices, t, dim);
+    return THCudaTensor_max(
+        getTHCState(), values, indices, t, dim, /*keepdim*/ false);
   }
   static void _min(THCudaTensor* values, THCudaLongTensor* indices,
                    THCudaTensor* t, int dim) {
-    return THCudaTensor_min(getTHCState(), values, indices, t, dim);
+    return THCudaTensor_min(
+        getTHCState(), values, indices, t, dim, /*keepdim*/ false);
   }
   static void _sum(THCudaTensor* r, THCudaTensor* t, int dim) {
-    return THCudaTensor_sum(getTHCState(), r, t, dim);
+    return THCudaTensor_sum(getTHCState(), r, t, dim, /*keepdim*/ false);
   }
   static void _prod(THCudaTensor* r, THCudaTensor* t, int dim) {
-    return THCudaTensor_prod(getTHCState(), r, t, dim);
+    return THCudaTensor_prod(getTHCState(), r, t, dim, /*keepdim*/ false);
   }
   static void _cumsum(THCudaTensor* r, THCudaTensor* t, int dim) {
     return THCudaTensor_cumsum(getTHCState(), r, t, dim);
