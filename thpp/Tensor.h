@@ -11,6 +11,11 @@
 #ifndef THPP_TENSOR_H_
 #define THPP_TENSOR_H_
 
+#ifdef THPP_COMPAT_TENSOR_H_
+#error "thpp-compatibility/ is a wrapper of legacy thpp with ATen's updated TH. You should NOT include thpp/ and thpp-compatibility/ in the same binary"
+#endif
+
+
 #include <thpp/Storage.h>
 #include <thpp/TensorBase.h>
 #include <thpp/detail/Tensor.h>
