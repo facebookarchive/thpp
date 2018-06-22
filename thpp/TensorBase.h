@@ -12,6 +12,8 @@
 #ifndef NO_FOLLY
 #include <folly/Range.h>
 #endif
+// in order to get default values for template args
+#include <thpp/ForwardDeclarations.h>
 #include <thpp/Storage.h>
 #include <thpp/TensorPtr.h>
 
@@ -434,7 +436,7 @@ Range<T*> makeMutable(Range<const T*> r) {
 
 // Define IsTensor<T> to be used in template specializations
 
-template <class T, class Enable=void>
+template <class T, class Enable>
 struct IsTensor : public std::false_type { };
 
 template <class T>
@@ -448,7 +450,7 @@ struct IsTensor<
       T>::value>::type>
   : public std::true_type { };
 
-template <class T, class Enable=void>
+template <class T, class Enable>
 struct IsTensorPtr : public std::false_type { };
 
 template <class T>

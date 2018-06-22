@@ -16,6 +16,7 @@
 #endif
 
 
+#include <thpp/ForwardDeclarations.h>
 #include <thpp/Storage.h>
 #include <thpp/TensorBase.h>
 #include <thpp/detail/Tensor.h>

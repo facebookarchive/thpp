@@ -12,6 +12,8 @@
 #ifndef NO_FOLLY
 #include <folly/Likely.h>
 #endif
+// in order to get default values for template args
+#include <thpp/ForwardDeclarations.h>
 
 namespace thpp {
 
@@ -89,7 +91,7 @@ constexpr const char* StorageBase<T, Derived>::kLuaTypeName;
 
 // Define IsStorage<T> to be used in template specializations
 
-template <class T, class Enable=void>
+template <class T, class Enable>
 struct IsStorage : public std::false_type { };
 
 template <class T>
