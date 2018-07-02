@@ -61,7 +61,9 @@ TEST(Storage, CustomAllocator) {
   {
     auto storage = FloatStorage(thStorage);
     g_ptr = thStorage->data;
+#ifndef NO_FOLLY
     auto buf = storage.getIOBuf();
+#endif
     THFloatStorage_free(thStorage);
     EXPECT_EQ(ctx.nFree, 0);
   }
@@ -75,7 +77,9 @@ TEST(Storage, CustomAllocator) {
   {
     auto storage = FloatStorage(thStorage);
     g_ptr = thStorage->data;
+#ifndef NO_FOLLY
     auto buf = storage.getIOBuf();
+#endif
   }
   EXPECT_EQ(ctx.nFree, 0);
   THFloatStorage_free(thStorage);
